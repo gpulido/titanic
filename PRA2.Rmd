@@ -24,10 +24,76 @@ knitr::opts_chunk$set(eval=T, echo=T)
 ******
 # Introducción
 ******
+
+En este conjunto de datos tenemos información acerca de los pasajeros que iban en el Titanic, naufragado en 1912 y en el que murieron 1500 personas. Además de información descriptiva del tipo de pasajero tenemos también el indicador de si sobrevivió al hundimiento o no. El objetivo es decidir si las variables aportadas son suficientes para crear un modelo predictivo que prediga la supervivencia o no de un pasajero.
+
+******
 # Descripción del dataset. ¿Por qué es importante y qué pregunta/problema pretende responder?
 ******
+
+Primer contacto con el conjunto de datos, visualizamos su estructura.  
+
+```{r echo=TRUE, message=FALSE, warning=FALSE}
+# Cargamos los paquetes R que vamos a usar
+library(ggplot2)
+library(dplyr)
+
+# Cargamos el fichero de datos
+data <- read.csv('train.csv',stringsAsFactors = FALSE)
+filas=dim(data)[1]
+
+# Verificamos la estructura del conjunto de datos
+str(totalData)
+```
+El conjunto de datos incluye 12 variables y 891 observaciones.
+
+Descripción del conjunto de datos:
+
+Passengerld 
+  Contador de pasajeros del 1 al 891.
+
+Survived 
+  esta variable toma dos valores e indica si el pasajero sobrevivió. (0= No, 1= Si).
+
+pClass 
+  clase del ticket. 1=1st (clase alta), 2=2nd (clase media) y 3=3rd (clase baja).
+
+Name
+  nombre completo del pasajero.
+  
+Sex
+  sexo del pasajero (Female o Male).
+  
+Age
+  edad del pasajero
+  
+SibSp
+  número de hermanos/hermanas, hermanastros/hermanastros y marido o esposa del pasajero que también iban a bordo.
+
+Parch
+  número de hijas, hijos, padre y madre del pasajero a bordo del Titanic.
+  
+Ticket 
+  El número del ticket del pasajero.
+
+Fare
+  Es la tarifa del pasajero en dólares.
+
+Cabin
+  Código identificativo de la cabina.
+  
+Embarked
+  el puerto en el que embarcó el pasajero (C = Cherbourg, Q =Queenstown, S = Southampton).
+
+## Objetivo
+
+El objetivo es decidir si las variables aportadas son suficientes para crear un modelo predictivo que prediga la supervivencia o no de un pasajero.
+
 # Integración y selección de los datos de interés a analizar.
 ******
+
+
+
 # Limpieza de los datos.
 
 ## ¿Los datos contienen ceros o elementos vacíos? ¿Cómo gestionarías cada uno de estos casos?
