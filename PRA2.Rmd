@@ -40,7 +40,7 @@ library(dplyr)
 
 # Cargamos el fichero de datos
 data <- read.csv('train.csv',stringsAsFactors = FALSE)
-filas=dim(data)[1]
+dim.data.frame(data)
 
 # Verificamos la estructura del conjunto de datos
 str(totalData)
@@ -92,11 +92,114 @@ El objetivo es decidir si las variables aportadas son suficientes para crear un 
 # Integración y selección de los datos de interés a analizar.
 ******
 
+Hemos leido los datos en un dataframe (al que llamamos "data"). Vemos su dimensionalidad, los nombres y tipos de las variables:
+
+```{r}
+dim.data.frame(data)
+sapply(data, function(x) class(x))
+```
+
+Aprovechamos para comprobar si hay registros duplicados usando el comando unique()
+
+```{r}
+data_unique <- unique(data)
+dim.data.frame(data_unique)
+remove(data_unique)
+```
+
+Se comprueba que la dimensionalidad ha quedado exactamente igual que cuando cargamos el dataset, por lo tanto, no hay registros duplicados (nos referimos a completos duplicados).
+
+Mostramos una muestra de los primeros registros de nuestro dataframe:
+
+```{r}
+
+```
+
+Hay algunas variables que carecen de interés por ser identificativas de cada registro. Se tratan de “PassengerId”, “Ticket” y “Name”. No nos interesa tener unívocamente identificado cada caso para realizar ningún tipo de análisis, no aportan nada. 
+
+## PersonasTicket
+
+Antes de eliminar la variable **Ticket** nos va a servir para conocer el precio unitario que han pagado los pasajeros, ya que la variable **Fare** es la tarifa pagada en el ticket, pero dentro del mismo ticket pueden estar incluidas varias personas. Entonces, inicialmente vamos a obtener el número de personas que están incluidas en un mismo ticket.
+
+```{r}
+nrow(table(data$Ticket, data$Fare))
+length(unique(data$Ticket))
+
+data %>% group_by(Ticket, Fare) %>% filter(row_number() == 1)
+
+```
+
+Podemos obtener el precio por persona, dividiendo Fare / integrantes del ticket:
+
+######################## NO encuentra PersonasTicket
+```{r}
+ticket_personas <- as.data.frame(data %>% group_by(Ticket) %>% dplyr::summarize(PersonasTicket-n()))
+```
+
+Creamos un nuevo dataframe (llamado "ticket_personas") con las variables **Ticket** y **PersonasTicket** 
+
+```{r}
+df_status(ticket_personas)
+```
+
+Este nuevo dataframe lo combinamos ocn nuestro dataframe original (un join) a travñes del número de ticket (variable **Ticket**) para poder incorporar el número de personas al dataframe original. Después de juntarlos eliminamos el df ticket_personas pues no lo necesitaremos.
+
+```{r}
+data <- merge(data, ticket_personas, by = "Ticket")
+remove(ticket_personas)
+```
+
+Ahora tenemos en nuestro dataframe original “data” una nueva variable “PersonasTicket”. Esa variable será utilizada para dividir la tarifa del ticket “Fare” entre esta nueva columna incorporada. Con ello obtenemos una nueva variable que le llamamos “Price” y es el precio por persona que se paga en el billete (obteniendo un precio por persona lineal por billete).
+
+```{r}
+data$Price <- data$Fare / data$PersonasTicket
+```
+
+Ahora ya podemos eliminar todas las variables que no vamos a necesitar: PassengerId, Name, Ticket, PersonasTicket:
+
+```{r}
+data <- select(data, -PassengerId, -Name, -Ticket, -PersonasTicket)
+```
+
+## FamilySize
+
+Revisando **Parch** (número de Padres / hijos a bordo) y **SibSp** (sibling: número de hermanos, hermanas, hermanastros y hermanastras  del pasajero, spouse: Marido o mujer del pasajero en el titanic ) vemos que las podemos agregar en una nueva variable **FamilySize** que será la suma de estas dos variables mas el propio viajero en cuestion. Por ello esta variable como mínimo valdra uno.
+
+```{r}
+data$FamilySize = data$SibSp + data$Parch + 1
+```
+
+## Revisión y conversion de tipos
+
+Tenemos algunas variables que, aunque a priori aparecen como “numeric” o “character” deberíamos convertir a “factor”. Estas variables son: “Survived”, “Pclass”, “Embarked” y “Sex”.
+Tienen un número finito de valores y aunque puedan ser numéricas, ese número no nos aporta información con lo que los discretizamos convirtiendolos en factores:
+
+```{r}
+data$Sex <- as.factor(data$Sex)
+data$Survived <- as.factor(data$Survived)
+data$Pclass <- as.factor(data$Pclass)
+data$Embarked <- as.factor(data$Embarked)
+
+```
+
+La variable **Cabin** es de tipo character, pero como vamos a eliminarla no haremos ninguna conversión.
+
+Finalmente nos quedarían como variables numéricas: **Age**, **SubSp**, **Parch**, **FamilySize**, **Fare** y **Price**
+
+```{r}
+summary(data)
+```
+
 
 
 # Limpieza de los datos.
 
 ## ¿Los datos contienen ceros o elementos vacíos? ¿Cómo gestionarías cada uno de estos casos?
+
+C
+
+
+
 
 ## Identificación y tratamiento de valores extremos.
 ******
