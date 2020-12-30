@@ -21,6 +21,12 @@ output:
 knitr::opts_chunk$set(eval=T, echo=T)
 ```
 
+```{r}
+library(funModeling)
+library(mice)
+```
+
+
 ******
 # Introducción
 ******
@@ -39,11 +45,11 @@ library(ggplot2)
 library(dplyr)
 
 # Cargamos el fichero de datos
-data <- read.csv('train.csv',stringsAsFactors = FALSE)
+data <- read.csv('train.csv',stringsAsFactors = FALSE, na.strings = "")
 dim.data.frame(data)
 
 # Verificamos la estructura del conjunto de datos
-str(totalData)
+str(data)
 ```
 El conjunto de datos incluye 12 variables y 891 observaciones.
 
@@ -119,7 +125,7 @@ Hay algunas variables que carecen de interés por ser identificativas de cada re
 
 ## PersonasTicket
 
-Antes de eliminar la variable **Ticket** nos va a servir para conocer el precio unitario que han pagado los pasajeros, ya que la variable **Fare** es la tarifa pagada en el ticket, pero dentro del mismo ticket pueden estar incluidas varias personas. Entonces, inicialmente vamos a obtener el número de personas que están incluidas en un mismo ticket.
+Antes de eliminar la variable **Ticket** nos va a servir para conocer el precio unitario que han pagado los pasajeros, ya que la variable **Fare** es la tarifa pagada en el ticket, pero dentro del mismo ticket pueden estar incluidas varias personas. Inicialmente vamos a obtener el número de personas que están incluidas en un mismo ticket.
 
 ```{r}
 nrow(table(data$Ticket, data$Fare))
@@ -131,9 +137,10 @@ data %>% group_by(Ticket, Fare) %>% filter(row_number() == 1)
 
 Podemos obtener el precio por persona, dividiendo Fare / integrantes del ticket:
 
-######################## NO encuentra PersonasTicket
 ```{r}
-ticket_personas <- as.data.frame(data %>% group_by(Ticket) %>% dplyr::summarize(PersonasTicket-n()))
+ticket_personas <- as.data.frame(data %>% 
+                                   group_by(Ticket) %>% 
+                                   dplyr::summarize(PersonasTicket=n()))
 ```
 
 Creamos un nuevo dataframe (llamado "ticket_personas") con las variables **Ticket** y **PersonasTicket** 
@@ -142,7 +149,7 @@ Creamos un nuevo dataframe (llamado "ticket_personas") con las variables **Ticke
 df_status(ticket_personas)
 ```
 
-Este nuevo dataframe lo combinamos ocn nuestro dataframe original (un join) a travñes del número de ticket (variable **Ticket**) para poder incorporar el número de personas al dataframe original. Después de juntarlos eliminamos el df ticket_personas pues no lo necesitaremos.
+Este nuevo dataframe lo combinamos con nuestro dataframe original (un join) a travñes del número de ticket (variable **Ticket**) para poder incorporar el número de personas al dataframe original. Después de juntarlos eliminamos el df ticket_personas pues no lo necesitaremos.
 
 ```{r}
 data <- merge(data, ticket_personas, by = "Ticket")
@@ -194,11 +201,252 @@ summary(data)
 
 # Limpieza de los datos.
 
-## ¿Los datos contienen ceros o elementos vacíos? ¿Cómo gestionarías cada uno de estos casos?
+Analizamos los valores nulos y vacíos. Para ello nos valemos de la salida de la función *df_status*, que no s muestra un resumen del estado de nuestras 8 variables actuales:
 
-C
+```{r}
+df_status(data)
+```
+
+### Elementos nulos y ceros. 
+
+## Elementos nulos
+########Revisar discrepancia de los datos
+
+```{r}
+data %>% group_by(Embarked) %>% count(Embarked)
+```
 
 
+
+En la tabla se observa que el campo **Age** tiene un 19.87% de nulos, **Cabin** más de un 77% y dos nulos en **Embarked**
+
+### Embarked
+
+Solo hay 2 valores nulos, al ser muy pocos casos y además la variable solo toma 3 posibles valores, imputamos el valor que mas se repite, que es Embarked=S (Southampton)
+
+```{r}
+data %>% group_by(Embarked) %>% count(Embarked)
+data_Embarked <- sort(table(data$Embarked, useNA = "ifany"), decreasing = TRUE)
+```
+
+Gráficamente:
+
+```{r}
+dat_plot <- as.data.frame(data_Embarked)
+ggplot(dat_plot, aes(x=Var1, y=Freq, fill=Var1)) +
+  geom_bar(stat = "identity", color = "black") +
+  geom_text(aes(label=Freq), vjust = -0.4, color="black", size=3) +
+  labs(x='Embarked', y='Count') + 
+  theme(legend.position = "none")
+```
+
+Asignamos el valor mas frecuente a los casos nulos:
+
+```{r}
+data$Embarked[is.na(data$Embarked)] <- names(data_Embarked[1])
+```
+
+### Cabin
+
+Dado que el número de nulos es muy elevado, un 77%, se opta por eliminar esta variable ya que tendríamos que imputar valores a una parte muy importante del dataset (con su consiguiente error). Además no parece que pueda ser una variable determinante para predecir la supervivencia.
+
+```{r}
+data <- select(data, -Cabin)
+```
+
+
+### Age
+
+Tiene mas del un 19% de calores nulos (concretamente 177 registros)
+
+Una opción para solucionarlos sería calcular la media del resto de registros e imputarla, pero vamos a estudiar si podemos delimitar la media a aplicar para obtener un resultado más depurado.
+
+Primero analizamos la distribución de la variable **Age** teniendo en cuenta sólo los registros donde hay valores (es decir algo mas del 80% del dataframe).
+Para ello creamos un nuevo dataset sin los registros nulos de Age
+
+```{r}
+data_NoNA = data[which(!is.na(data$Age)),]
+```
+
+Observamos gráficamente como se distribuye la variable Age en este dataset:
+
+```{r}
+ggplot(data_NoNA, aes(Age))+
+  geom_histogram(aes(y = ..density..), bins=50, fill="steelblue", color="blue") + 
+  stat_function(fun = dnorm, args = list(mean = mean(data_NoNA$Age), sd = sd(data_NoNA$Age)))
+```
+
+Comprobamos si hay alguna relación entre la edad alguna del resto de variables, para tenerlo en cuenta a la hora de imputar valores
+
+#### Age vs Sex
+
+Comprobamos gráficamente la relación entre la edad y el género
+
+```{r}
+titulo <- 'Age vs Sex'
+ggplot(data_NoNA, aes(y=Age, x=Sex, fill=Sex)) + geom_boxplot() + labs(title = paste0('Boxplot: ', titulo)) + ylab("Age") + xlab("Sex")
+```
+
+No se aprecian casi diferencias de edad en función del género
+
+### Age vs Embarked
+
+Comprobamos gráficamente la relación entre la edad y el puerto de Embarque
+
+```{r}
+titulo <- 'Age vs Embarked'
+ggplot(data_NoNA, aes(y=Age, x=Embarked, fill=Embarked)) + 
+  geom_boxplot() + labs(title = paste0('Boxplot: ', titulo)) + ylab("Age") + xlab("Embarked")
+```
+
+Tampoco se aprecian diferencias significativas en este caso con respecto a las medias de edad en cada una de las clases de Embarked.
+
+### Age vs Pclass
+
+Representamos visualmente la relación entre Age y Pclass:
+
+```{r}
+titulo <- 'Age vs Embarked'
+ggplot(data_NoNA, aes(y=Age, x=Pclass, fill=Pclass)) + 
+  geom_boxplot() + labs(title = paste0('Boxplot: ', titulo)) + ylab("Age") + xlab("Pclass")
+```
+
+En este caso si se observa una relación entre la edad y la clase en que viajaban los pasajeros: Los pasajeros de clase 1 (alta) tenían generalmente mayor edad que los de clase 2 (media) e igualmente sucede con los de clase 3 (baja). 
+
+### Age vs Variables numéricas
+######### código para la correlación
+```{r}
+
+```
+
+Se observa que existe correlación negativa con **SibSp** y con **Parch** (también con **FamilySize**, pero eso es completamente normal porque **FamilySize** es una transformación lineal de las otras 2). También hay correlación positiva con **Price**, pero entendemos que podemos tener en cuenta la parte familiar por el tema de esposa, hijos, hermanos, etc. puede tener efecto en la edad.
+
+### Imputación de valores a Age
+
+Tras el análisis de las diversas relaciones entre las variables y Age vamos a realizar cuatro simulaciones diferentes de imputación y nos quedaremos con una sola:
+
+- Caso 1: Imputar la media de **Age** a todos los elementos faltantes
+
+```{r}
+data$Age1 <- data$Age
+data$Age1[is.na(data$Age1)] <- mean(data_NoNA$Age)
+
+ggplot(data, aes(Age1)) +
+  geom_histogram(aes(y = ..density..), bins=50, fill="steelblue", color="blue") + 
+  stat_function(fun = dnorm, args = list(mean = mean(data$Age1), sd = sd(data$Age1)))
+```
+
+
+- Caso 2: Imputar la media de **Age** pero por cada una de las clases(“Pclass”) ya que hemos visto que hay una relación entre ambas variables.
+
+```{r}
+data$Age2 <- data$Age
+data$Age2[is.na(data$Age2)&data$Pclass == 1] <- mean(data$Age2[!is.na(data$Age2)&data$Pclass == 1])
+data$Age2[is.na(data$Age2)&data$Pclass == 2] <- mean(data$Age2[!is.na(data$Age2)&data$Pclass == 2])
+data$Age2[is.na(data$Age2)&data$Pclass == 3] <- mean(data$Age2[!is.na(data$Age2)&data$Pclass == 3])
+
+ggplot(data, aes(Age2)) +
+  geom_histogram(aes(y = ..density..), bins=50, fill="steelblue", color="blue") + 
+  stat_function(fun = dnorm, args = list(mean = mean(data$Age2), sd = sd(data$Age2)))
+```
+
+- Caso 3: Imputar la datos en **Age**, pero teniendo en cuenta **Pclass**, **Parch** y **SibSp**, ya que hemos visto correlación entre las variables. Para este caso lo que hacemos es tener en cuenta las 3 variables y generar una agrupación de datos calculando la media para las combinaciones (recordemos que son variables discretas). Una vez que obtenemos esos valores medios, los imputamos. Luego verificamos si quedó algún valor sin imputar (que serán muy pocos) y para esos pocos casos faltantes, imputar los valores por cada clase.
+
+```{r}
+medias_clase_fam <- as.data.frame(data_NoNA %>% group_by(Pclass, SibSp, Parch) %>% dplyr::summarize(Media_clase_fam = mean(Age)))
+```
+
+Hacemos un meMerge entre nuestro dataset original y el de Medias (por Pclass, SIbSp y Parch) a través de las columnas usadas en la agrupación.
+El merge e sun LEFT JOIN ya que puede que no existan todas las combinaciones en medias_clase_fam
+
+```{r}
+data$Age3 <- data$Age
+data <- merge(data, medias_clase_fam, by = c("Pclass", "SibSp", "Parch"), all.x = TRUE)
+data$Age3[is.na(data$Age3)] <- data$Media_clase_fam[is.na(data$Age3)]
+```
+
+Como es posible que nos hayan quedado alguno sin poder asignar (al no existir la combinación Pclass + sibSp + Parch) a los que faltan (que son 7) les asignamos directamente por la Pclass sin tener en cuenta los otros valores
+
+```{r}
+data$Age3[is.na(data$Age3)&data$Pclass == 1] <- mean(data$Age3[!is.na(data$Age3)&data$Pclass == 1])
+data$Age3[is.na(data$Age3)&data$Pclass == 2] <- mean(data$Age3[!is.na(data$Age3)&data$Pclass == 2])
+data$Age3[is.na(data$Age3)&data$Pclass == 3] <- mean(data$Age3[!is.na(data$Age3)&data$Pclass == 3])
+```
+
+Vemos ahora la distribución que nos queda
+
+```{r}
+ggplot(data, aes(Age3)) +
+  geom_histogram(aes(y = ..density..), bins=50, fill="steelblue", color="blue") + 
+  stat_function(fun = dnorm, args = list(mean = mean(data$Age3), sd = sd(data$Age3)))
+```
+
+- Caso 4: Imputando datos de **Age**, con MICE (Multivariate Imputation via Chained Equations). En este caso se predicen los valores de **Age**, con el resto de valores observados (usamos para este caso **Pclass**, **SibSp**, **Parch**, **Sex** y **Age**).
+
+```{r}
+columnas <- c('Pclass', 'SibSp', 'Parch', 'Sex', 'Age')
+
+mice_imputar <- mice(data = data[, columnas], method = "rf")
+#mice_imputar <-  parlmice(data = data[, columnas], method = "rf", n.core = 8, n.imp.core = 50)
+mice_completo <- mice::complete(mice_imputar)
+data$Age4 <- data$Age
+data$Age4[is.na(data$Age4)]<- mice_completo$Age[is.na(data$Age4)]
+```
+
+Tras la imputación observamos la gráfica:
+
+```{r}
+ggplot(data, aes(Age4)) +
+  geom_histogram(aes(y = ..density..), bins=50, fill="steelblue", color="blue") + 
+  stat_function(fun = dnorm, args = list(mean = mean(data$Age4), sd = sd(data$Age4)))
+```
+
+Resumiendo el resultado de las 4 opciones de imputación mas la original:
+
+```{r}
+summary(data$Age)
+summary(data$Age1)
+summary(data$Age2)
+summary(data$Age3)
+summary(data$Age4)
+```
+
+Tras ver los resultados nos decantamos por la cuarta opción (Age4), ya que la distribución se parece mucho más
+a la original.
+Asignamos y limpiamos el dataset:
+
+```{r}
+data$Age <- data$Age4
+data <- select(data, -Age1, -Age2, -Age3, -Age4, -Media_clase_fam)
+```
+
+
+## Ceros 
+
+Recordamos los valores con ceros del dataset
+
+```{r}
+df_status(data)
+```
+
+
+Tenemos un alto número de ceros en **SibSp** y **Parch**, pero son valores válidos para estas variables, pues cuentan el número de acompañantes (familiares) del pasajero. Hay también un porcentaje  pequeño de ceros en **Fare** (tarifa), esto podría tener algún sentido (por ejemplo, tickets sin coste por ser un premio o un regalo) por lo que, en principio, vamos a dejar presentes estos ceros.
+
+
+## Conclusión limpieza nulos y ceros
+
+Viendo nuevamente los resultados con **summary**, hemos eliminado los nulos y tenemos un nuevo valor de media y mediana para **Age**
+
+```{r}
+summary(data)
+```
+
+Y con “df_status” vemos también como nos han quedado los datos después de eliminar variables, y de imputar valores en las variables que le faltaban algunos valores. El dataset queda libre de nulos, y con los ceros que hemos
+aceptado que tiene que mantener y que tienen sentido.
+
+```{r}
+df_status(data)
+```
 
 
 ## Identificación y tratamiento de valores extremos.
