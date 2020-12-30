@@ -448,8 +448,112 @@ aceptado que tiene que mantener y que tienen sentido.
 df_status(data)
 ```
 
-
 ## Identificación y tratamiento de valores extremos.
+
+Se considera un valor extremo, outlier, a un valor fuera de rango. Son valores que se salen de la escala esperada visualizando el resto de las observaciones. En la actualidad, el criterio más habitual es considerar un valor extremo
+a aquel que se encuentra alejado de la media unas tres veces la desviación típica.
+En nuestro caso vamos a comenzar por separar aquellas variables que son numéricas y verlas en un gráfico bloxplot:
+
+#########################Gráfico boxplot variables numéricas
+```{r}
+
+```
+
+De todas las variables numéricas sólo 3 son contínuas: **Age**, **Price** y **Fare**
+
+Analicemos esas tres variables por separado
+
+### Fare
+
+El boxplot parece indicar que Fare tiene valores extrremos. Los identificamos usando el critero de tres veces la desviación típica:
+
+```{r}
+data_out <- as.data.frame(data$Fare)
+data_out$outlier <- FALSE
+for (i in 1:ncol(data_out) - 1){
+  columna = data_out[, i]
+  if (is.numeric(columna)) {
+    media = mean(columna)
+    desviacion = sd(columna)
+    data_out$outlier = (columna> (media+3*desviacion) | columna<(media-3*desviacion))
+  }
+}
+table(data_out$outlier)
+```
+
+Con este criterio tenemos identificados 20 posibles outliers, observando mas detenidamente los valores que nos indica boxplot.stats y teniend en cuenta que el máximo es 512, no parecen exagerados:
+
+```{r}
+boxplot.stats(data$Fare)$out
+```
+
+Los valores, además, están bien distribuidos, los más altos en las clases altas.
+
+Por todo esto, decidimos no realizar ninguna acción con estos outliers ya que incluso ueden estar aportando información importante:
+
+################## Gráfico outlier Fare
+```{r}
+
+```
+
+### Price
+
+Hacemos un análisis similar al realizado con  Fare:
+```{r}
+data_out <- as.data.frame(data$Price)
+data_out$outlier <- FALSE
+for (i in 1:ncol(data_out) - 1){
+  columna = data_out[, i]
+  if (is.numeric(columna)) {
+    media = mean(columna)
+    desviacion = sd(columna)
+    data_out$outlier = (columna> (media+3*desviacion) | columna<(media-3*desviacion))
+  }
+}
+table(data_out$outlier)
+```
+
+De nuevo con boxplot.stats analizamos los outliers, el valor máximo 221:
+
+```{r}
+boxplot.stats(data$Price)$out
+```
+
+Y al igual que con **Fare**, los valores más altos en las clases altas:
+#############Gráfico boxplot Fare
+```{r}
+
+```
+
+Al igual que con **Fare** optamos por considerarlos valores válidos y no realizamos ninguna accion.
+
+### Age
+
+De nuevo realizamos el mismo procedimiento que con las otras dos variables
+
+```{r}
+data_out <- as.data.frame(data$Age)
+data_out$outlier <- FALSE
+for (i in 1:ncol(data_out) - 1){
+  columna = data_out[, i]
+  if (is.numeric(columna)) {
+    media = mean(columna)
+    desviacion = sd(columna)
+    data_out$outlier = (columna> (media+3*desviacion) | columna<(media-3*desviacion))
+  }
+}
+table(data_out$outlier)
+```
+
+y el resultado de boxplot.stats
+
+
+```{r}
+boxplot.stats(data$Age)$out
+```
+
+Donde vemos que podríamos tener 2 valores outliers, pero observando los valores devueltos por boxplot.stats que son totalmente normales no los vamos a considerar outliers.
+
 ******
 # Análisis de los datos.
 
