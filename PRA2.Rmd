@@ -24,6 +24,7 @@ knitr::opts_chunk$set(eval=T, echo=T)
 ```{r}
 library(funModeling)
 library(mice)
+library(car)
 ```
 
 
@@ -207,9 +208,9 @@ Analizamos los valores nulos y vacíos. Para ello nos valemos de la salida de la
 df_status(data)
 ```
 
-### Elementos nulos y ceros. 
+## Elementos nulos y ceros. 
 
-## Elementos nulos
+### Elementos nulos
 ########Revisar discrepancia de los datos
 
 ```{r}
@@ -220,7 +221,7 @@ data %>% group_by(Embarked) %>% count(Embarked)
 
 En la tabla se observa que el campo **Age** tiene un 19.87% de nulos, **Cabin** más de un 77% y dos nulos en **Embarked**
 
-### Embarked
+#### Embarked
 
 Solo hay 2 valores nulos, al ser muy pocos casos y además la variable solo toma 3 posibles valores, imputamos el valor que mas se repite, que es Embarked=S (Southampton)
 
@@ -246,7 +247,7 @@ Asignamos el valor mas frecuente a los casos nulos:
 data$Embarked[is.na(data$Embarked)] <- names(data_Embarked[1])
 ```
 
-### Cabin
+#### Cabin
 
 Dado que el número de nulos es muy elevado, un 77%, se opta por eliminar esta variable ya que tendríamos que imputar valores a una parte muy importante del dataset (con su consiguiente error). Además no parece que pueda ser una variable determinante para predecir la supervivencia.
 
@@ -255,7 +256,7 @@ data <- select(data, -Cabin)
 ```
 
 
-### Age
+#### Age
 
 Tiene mas del un 19% de calores nulos (concretamente 177 registros)
 
@@ -289,7 +290,7 @@ ggplot(data_NoNA, aes(y=Age, x=Sex, fill=Sex)) + geom_boxplot() + labs(title = p
 
 No se aprecian casi diferencias de edad en función del género
 
-### Age vs Embarked
+#### Age vs Embarked
 
 Comprobamos gráficamente la relación entre la edad y el puerto de Embarque
 
@@ -301,7 +302,7 @@ ggplot(data_NoNA, aes(y=Age, x=Embarked, fill=Embarked)) +
 
 Tampoco se aprecian diferencias significativas en este caso con respecto a las medias de edad en cada una de las clases de Embarked.
 
-### Age vs Pclass
+#### Age vs Pclass
 
 Representamos visualmente la relación entre Age y Pclass:
 
@@ -313,7 +314,7 @@ ggplot(data_NoNA, aes(y=Age, x=Pclass, fill=Pclass)) +
 
 En este caso si se observa una relación entre la edad y la clase en que viajaban los pasajeros: Los pasajeros de clase 1 (alta) tenían generalmente mayor edad que los de clase 2 (media) e igualmente sucede con los de clase 3 (baja). 
 
-### Age vs Variables numéricas
+#### Age vs Variables numéricas
 ######### código para la correlación
 ```{r}
 
@@ -321,7 +322,7 @@ En este caso si se observa una relación entre la edad y la clase en que viajaba
 
 Se observa que existe correlación negativa con **SibSp** y con **Parch** (también con **FamilySize**, pero eso es completamente normal porque **FamilySize** es una transformación lineal de las otras 2). También hay correlación positiva con **Price**, pero entendemos que podemos tener en cuenta la parte familiar por el tema de esposa, hijos, hermanos, etc. puede tener efecto en la edad.
 
-### Imputación de valores a Age
+#### Imputación de valores a Age
 
 Tras el análisis de las diversas relaciones entre las variables y Age vamos a realizar cuatro simulaciones diferentes de imputación y nos quedaremos con una sola:
 
@@ -421,7 +422,7 @@ data <- select(data, -Age1, -Age2, -Age3, -Age4, -Media_clase_fam)
 ```
 
 
-## Ceros 
+### Ceros 
 
 Recordamos los valores con ceros del dataset
 
@@ -433,7 +434,7 @@ df_status(data)
 Tenemos un alto número de ceros en **SibSp** y **Parch**, pero son valores válidos para estas variables, pues cuentan el número de acompañantes (familiares) del pasajero. Hay también un porcentaje  pequeño de ceros en **Fare** (tarifa), esto podría tener algún sentido (por ejemplo, tickets sin coste por ser un premio o un regalo) por lo que, en principio, vamos a dejar presentes estos ceros.
 
 
-## Conclusión limpieza nulos y ceros
+### Conclusión limpieza nulos y ceros
 
 Viendo nuevamente los resultados con **summary**, hemos eliminado los nulos y tenemos un nuevo valor de media y mediana para **Age**
 
@@ -465,7 +466,7 @@ Analicemos esas tres variables por separado
 
 ### Fare
 
-El boxplot parece indicar que Fare tiene valores extrremos. Los identificamos usando el critero de tres veces la desviación típica:
+El boxplot parece indicar que Fare tiene valores extremos. Los identificamos usando el criterio de tres veces la desviación típica:
 
 ```{r}
 data_out <- as.data.frame(data$Fare)
@@ -491,7 +492,7 @@ Los valores, además, están bien distribuidos, los más altos en las clases alt
 
 Por todo esto, decidimos no realizar ninguna acción con estos outliers ya que incluso ueden estar aportando información importante:
 
-################## Gráfico outlier Fare
+TODO################## Gráfico outlier Fare
 ```{r}
 
 ```
@@ -559,7 +560,193 @@ Donde vemos que podríamos tener 2 valores outliers, pero observando los valores
 
 ## Selección de los grupos de datos que se quieren analizar/comparar (planificación de los análisis a aplicar).
 
+Del dataset completo nos interesa poder realizar diferentes análisis en función de diferentes subconjuntos de datos, como puede ser el género, la clase en la que viajan los pasajeros, el puerto en el que han embarcado, incluso
+se pueden definir grupos por edad, y ver realmente si es cierto y se cumplió aquello que dicen en las películas “las mujeres y los niños primero” y poder comprobar si realmente los niños tienen mejor índice de supervivencia que los
+adultos.
+Podemos definir diferentes agrupaciones que podemos usar más adelante para estudiar los casos por grupos
+
+### Niños
+
+Vamos a definir una variable Child para aquellso registros en los que la edad sea menor que 8
+
+```{r}
+edad_corte = 8
+data$Child[data$Age <= edad_corte] <- 1
+data$Child[data$Age > edad_corte] <- 0
+data$Child <- as.factor((data$Child))
+```
+
+### Género
+
+Agrupamos por el género, creando una variable para cada uno de los géneros
+
+```{r}
+Mujeres <- data[which(data$Sex == 'female'),]
+Hombres <- data[which(data$Sex == 'male'),]
+```
+
+
+### Lugar de embarque
+
+Agrupamos por el lugar de embarque creando una variable por cada uno de los lugares
+
+```{r}
+EmbarqueC <- data[which(data$Embarked == 'C'),]
+EmbarqueQ <- data[which(data$Embarked == 'Q'),]
+EmbarqueS <- data[which(data$Embarked == 'S'),]
+
+```
+
+### Clase
+Agrupamos por clase
+
+```{r}
+FirstClass <- data[which(data$Pclass == 1),]
+SecondClass <- data[which(data$Pclass == 2),]
+ThirdClass <- data[which(data$Pclass == 3),]
+```
+
+### Edades
+
+Vamos a discretizar los valores por grupos de edades, añadiendo una columan al dataset (AgeInterval)
+
+```{r}
+data["AgeInterval"] <- cut(data$Age, breaks = c(0,13,18,40,55, 100), labels = c("0-12", "13-17", "18-39","40-54", "55-100"))
+#intervalos_edad <- c(0,13,18,40,55)
+#data$AgeInterval <- findInterval(data$Age, intervalos_edad)
+data$AgeInterval <- as.factor(data$AgeInterval)
+table(data$AgeInterval)
+plot(data$AgeInterval)
+```
+
+
 ## Comprobación de la normalidad y homogeneidad de la varianza.
+
+### Normalidad
+
+Vamos a verificar si las variables cuantitativas continuas siguen una distribución normal. Algunos test estadísticos requieren que las variables que van a ser analizadas sigan una distribución normal, por tanto tenemos que conocer cuáles son las distribuciones de nuestras variables continuas.
+Las únicas variables cuantitativas continuas que tenemos en el dataset original son las variables **Age** y **Fare**. Además, hemos generado una nueva variable a partir de **Fare**, que hemos llamado **Price**, y que, por tanto también es una variable cualitativa continua. 
+
+En general, la prueba de *Shapiro-Wilk* se considera una prueba muy potente para contrastar la normalidad de distribuciones. Se asume como hipótesis nula que la población sigue una distribución normal. Si el p-valor obtenido es inferior al nivel de significancia (normalmente α = 0,05) entonces se rechaza la hipótesis nula (y por tanto se concluye que los datos no vienen de una distribución normal). En cambio, si el p-valor es superior al nivel de significancia,
+entonces no se puede rechazar la hipótesis nula y se asume que los datos
+siguen una distribución normal.
+Para poder tener más seguridad, vamos a aplicar otros dos métodos, la prueba de *Anderson-Darling* y la prueba de *Kolmogorov-Smirnov* (conocida también como K-S)
+
+Creamos un data frame para resumir los tests:
+
+```{r}
+tabla.normalidad <- data.frame('variable' = character(),
+                               'Test de Normalidad' = character(),
+                               'Valor Estadístico' = numeric(),
+                               'p-value' = numeric(),
+                               stringsAsFactors = FALSE) 
+str(tabla.normalidad)
+```
+Ahora recorremos todas las variables continuas aplicando los tres tests y añadiéndolos al dataframe:
+
+```{r}
+var.continuas <-c("Age", "Fare", "Price")
+library(nortest)
+for (i in 1:length(var.continuas)){
+  variable = var.continuas[i]
+  #Test Shapiro-wil
+  test = shapiro.test(data[,variable])
+  tabla.normalidad[nrow(tabla.normalidad)+1,] = c(variable, test$method, test$statistic, test$p.value)
+  
+  #Test Anderson-Darling
+  test = ad.test(data[,variable])
+  tabla.normalidad[nrow(tabla.normalidad)+1,] = c(variable, test$method, test$statistic, test$p.value)
+  
+  #Test Kolmogorov-Smirnov
+  test = ks.test(data[,variable], "pnorm", mean=mean(data[,variable]), sd=sd(data[,variable]))
+  tabla.normalidad[nrow(tabla.normalidad)+1,] = c(variable, test$method, test$statistic, test$p.value)
+}
+
+knitr::kable(tabla.normalidad)
+```
+
+Con estos resultados se puede decir que ninguna de las 3 variables sigue una distribución normal, en todos los casos el p-value ha sido inferior a 0.05 y
+por tanto se han rechazado la hipótesis nula (que la variable sigue una distribución normal).
+
+No obstante, vamos a revisar gráficamente la distribución de cada una de las variables usando su histograma, curva de densidad y gráficas Q-Q
+
+#########################Graficas histogŕamas y q-q
+
+### Homocedasticidad (comprobación de varianzas)
+
+Cuando comparamos varianzas lo que estamos comprobando es que las varianzas entre los grupos a comparar son iguales.
+Si los datos siguen una distribución normal, podemos usar el test de Levene, en caso contrario podemos usar por ejemplo el test de Fligner-Killeen, que es la alternativa no paramétrica que se utiliza cuando los datos no siguen una distribución normal ( o cuando hay problemas con outliers no resueltos)
+
+En ambos test (Levene y Fligner-Killeen), la hipótesis nula asume la igualdad de varianzas en los diferentes grupos de datos, con lo que si el p-valor obtenido es inferior al nivel de significancia (generalmente alpha = 0,05) se rechaza la hipótesis nula y se concluye que hay heterocedasticidad.
+
+#### Age
+
+La variable Age está próxima a una distribución normal por lo cual podemos utilizar el test de Levene para la comprobación de varianzas.
+
+
+##### Age con Survived
+
+Primero analizamos si las varianzas son iguales cuando comprobamos **Age** y el grupo es **Survived**, es decir estamos comprobando la homogeneidad de varianzas de la edad en los grupos de supervivientes y no supervivientes.
+
+```{r}
+
+leveneTest(data = data, Age ~ Survived, center = mean)
+```
+En este caso el p-value es superior a 0.05 y por tanto asumimos que hay homogeneidad de varianzas entre los grupos
+
+
+TODO############# Representación muestras forma gráfica
+
+##### Age con Embarked
+
+Ahora Comprobamos también cómo se comportan las varianzas cuando se trata de la variable edad “Age” con “Embarked”.
+
+```{r}
+leveneTest(data = data, Age ~ Embarked, center = mean)
+```
+En este caso hay omogeneidad de varianzas de Age en los grupos que define la variable Embarked
+
+##### Age con Pclass
+Ahora Comprobamos también cómo se comportan las varianzas cuando se trata de la variable edad “Age” con “Pclass”.
+En este caso vamos a aplicar tanto el test de Levene como el de Fligner-Killeen:
+
+
+```{r}
+leveneTest(data = data, Age ~ Pclass, center = mean)
+fligner.test(Age ~ Pclass, data = data)
+```
+En los dos tests (parmétrico y no paramétrico), se rechaza la hipótesis nula, con lo que hay heterogeneidad d varianzas entre las muestras de **Age**  cuando se agrupan por **Pclass**
+
+##### Age con Sex
+
+```{r}
+leveneTest(data = data, Age ~ Sex, center = mean)
+fligner.test(Age ~ Sex, data = data)
+```
+
+En los dos tests el p-value es claramente superior a 0.05 por lo que podemos afirmar que sí hay homogeneidad de varianzas para *Age* cuando está agrupado por *Sex*
+
+#### Fare
+
+Hacemos el mismo estudio con la variable Fare pero usando Fligner
+
+```{r}
+fligner.test(Fare ~ Sex, data = data)
+fligner.test(Fare ~ Survived, data = data)
+fligner.test(Fare ~ Embarked, data = data)
+fligner.test(Fare ~ Pclass, data = data)
+```
+
+Comprobamos la variable “Fare”, los resultados indican que hay hetero-
+geneidad de varianza de esas variables respecto a los grupos con los que se
+ha aplicado el test no paramétrico.
+
+¿?
+#### Price
+
+
+
+
 
 ## Aplicación de pruebas estadísticas para comparar los grupos de datos. 
 
