@@ -737,21 +737,353 @@ fligner.test(Fare ~ Embarked, data = data)
 fligner.test(Fare ~ Pclass, data = data)
 ```
 
-Comprobamos la variable “Fare”, los resultados indican que hay hetero-
-geneidad de varianza de esas variables respecto a los grupos con los que se
-ha aplicado el test no paramétrico.
+Comprobamos la variable “Fare”, los resultados indican que hay heterogeneidad de varianza de esas variables respecto a los grupos con los que se ha aplicado el test no paramétrico.
 
 ¿?
 #### Price
 
 
-
-
-
 ## Aplicación de pruebas estadísticas para comparar los grupos de datos. 
+
+### Análisis de relaciones entre variables
+
+Primero vamos a realizar diversos análisis de relaciones variables (principalmente pares de variables), para aclarar la dependencia entre ellas y como pueden afectar a las posibilidades de supervivencia
+
+#### Age y Sex
+Primero vamos a analizar si hay diferencias significativas entre la media de edad de mujeres y de hombres.
+Para hacerlo aplicamos el test paramétrico t-test de Student, que requiere que las muestras a comparar sigan una distribución normal.
+Ya vimos que **Age** no sigue exactamente una distribución normal, pero si consideramos el teorema central del límite con una muestra suficientemente grande (mayor de 30) se puede asumir que la variable sigue una distribución normal. Si la variable no siguiese una distribución normal habríamos aplicado una prueba no paramétrica como por ejemplo el test de Mann-Whitney.
+
+Para ejecutar la prueba t de Student, disponemos en R del comando "t.test". Este mismo comando nos permite realizar el test de Welch cuando las varianzas entre las muestras son diferentes. 
+Comprobemos que la variable **Age** sigue una distribución normal primero aplicando el F-test mediante el comando var.test
+
+```{r}
+var.test(Mujeres$Age, Hombres$Age)
+```
+
+El resultado nos indica que las varianzas de edad en los grupos de mujeres y hombres son iguales.
+
+Aplicamos ahora un test para comparar las medias de los 2 grupos, la hipótesis nula será que no hay diferencias significativas entre la media de edades para hombres y mujeres. Podemos usar el t-Test indicando que las varianzas de los grupos son iguales (por el resultado anterior).
+
+```{r}
+t.test(Mujeres$Age, Hombres$Age, var.equal = TRUE)
+```
+
+El valor de p-values es inferior a 0.05, por lo que rechazamos la hipótesis nula. Es decir, **la media de edad por género tiene una diferencia significativa**.
+
+Esstablecemos una nueva hipótesis alternativa: que la media de edad de las mujeres es menor que la de los hombres. Por lo tanto, la hipótesis nula corresponde a que la edad de las mujeres es mayor o igual a la de los hombres:
+
+```{r}
+t.test(Mujeres$Age, Hombres$Age, alternative = "less", var.equal = TRUE)
+```
+Con un p-value menor de 0.5 volvemos a rechazar la hipótesis nula, es decir, podemos afirmar que la media de edad de las mujeres del Titanic es inferior a la media de edad de los hombres a bordo.
+
+#### Survival y Sex
+
+Si hacemos una inspección visual de la relación entre las dos variables:
+
+```{r}
+ggplot(data,aes(x=Sex,fill=Survived))+geom_bar()
+```
+
+Parece indicar que ser mujer tenía mas posibilidades de supervivencia que siendo hombre.
+Vamos a confirmar esto realizando algunos contrastes de hipótesis.
+
+
+Primero, vamos a comprobar la relación entre la supervivencia y el género, analizando si el género fue un factor importante a la hora de la supervivencia, o dicho de otro modo, si dependiendo de si se era mujer u hombre las posibilidades de supervivencia cambiaban significativamente.
+Para hacerlo aplicamos el test exacto de Fisher que analiza tablas de contigencia. En este caso la hipótesis nula es que la proporción de mujeres que mueren coincide con la proporción de hombre que mueren en el accidente del Titanic.
+
+```{r}
+fisher.test(table(data$Sex, data$Survived))
+```
+
+El resultado no deja lugar a dudas con un p-valor < 0.05 rechazamos la hipótesis nula, es decir: **hay diferente proporción de supervivencia entre hombres y mujeres.**
+
+Una vez confirmado que el género si que es importante a ala hora de las probabilidades de supervivencia, vamos a ver quien tiene mas probabilidades de supervivencia, si las mujeres o los hombres. Para ello añadimos una condición a la hipótesis alternativa, usamos “less” para indicar (en la hipótesis nula) que el primer grupo (en este caso las mujeres ya que en orden alfabético es female y male) tiene menor proporción (probabilidad) si se rechaza la hipótesis nula. Es decir, la hipótesis nula dice que “la proporción de mujeres que mueren es mayor que la de los hombres”.
+
+```{r}
+fisher.test(table(data$Sex, data$Survived), alternative = 'less')
+```
+
+De nuevo rechazamos la hiótesis nula (p-value inferior a 0.05) con lo que se cumple la hipótesis alternativa: **la proporción de mujeres que mueren es inferior a la de los hombres**.
+
+Si tenemos en cuenta que la tabla de contingencia que estamos evaluando es la siguiente:
+
+```{r}
+table(data$Sex, data$Survived)
+```
+
+El odd ratio de la tabla de contigengica lo calculamos así:
+
+```{r}
+tab.contigencia = table(data$Sex, data$Survived)
+odd_ratio = (tab.contigencia[1,1] / tab.contigencia[1,2]) /
+  (tab.contigencia[2,1] / tab.contigencia[2,2])
+odd_ratio
+```
+
+Como vimos antes en el test de Fisher, la hipótesis alternativa se hace verdadera cuando el odd_ratio se vuelve 1. Luego cuando a la hipótesis alternativa le ponemos “less”, esta se hace verdadera cuando odd_ratio es menor que 1. Y si ponemos “greater” la hipótesis alternativa se hace verdadera si el odd_ratio es mayor que 1.
+
+Podemos obtener intervalos de confianza, por ejemplo, al 99% de que la media de las edades de diferentes muestras, van a estar entre los valores 28.8 y 31.26 de media de edad.
+
+```{r}
+test = t.test(data$Age, conf.level = 0.99)
+test$conf.int
+```
+
+#### Survival y Pclass 
+
+De nuevo hacemos una primera inspección visual
+
+```{r}
+ggplot(data,aes(x=Pclass,fill=Survived))+geom_bar()
+```
+
+En el gráfico se aprecia claramente que el porcentaje de supervivencia por clases disminuye desde la primera hasta la tercera clase.
+
+Para realizar el análisis numéricamente, al ser dos variables categóricas vamos a aplicar por ejemplo el test Chi-Cuadrado. Aquí la hipótesis nula nos dice que las variables son independientes. Vamos a comprobarlo:
+
+```{r}
+test_chisq <- chisq.test(data$Pclass, data$Survived)
+test_chisq
+```
+
+El p-value obtenido es inferior a 0.05, es decir, rechazamos la hipótesis nula, y por tanto afirmamos que las variables no son independientes. Esto quiere decir que el grado de supervivencia era distinto dependiendo de la clase en la que estuvieses embarcado. Confirma el análisis visual, que nos aporta también que las clases con mas superviencia eran las mejores.
+
+También se puede observar el valor de df que son los grados de libertad, que lo podemos obtener a través de la tabla de contingencias y el estadístico de contraste. Si el estadístico de contraste obtenido supera el valor crítico entonces se rechaza la hipótesis nula.
+
+```{r}
+df_chisq <- (length(levels(data$Pclass)) -1 ) * (length(levels(data$Survived)) - 1)
+valorcritico_chisq <- qchisq(p=0.05, df = df_chisq, lower.tail = FALSE)
+cat(sprintf("El estadístico obtenido es: %f y el valor crítico es: %f", test_chisq$statistic, valorcritico_chisq))
+```
+
+#### Survived y Embarked
+
+Realizamos el mismo análisis
+
+```{r}
+ggplot(data,aes(x=Embarked,fill=Survived))+geom_bar()
+```
+
+El gráfico parece indicar que los embarcados en Southampton tenían menos posibilidades de sobrevivir. Puede ser que esté relacionado con la Pclass de cada lugar de embarque:
+
+```{r}
+ggplot(data,aes(x=Pclass,fill=Survived))+geom_bar()+facet_wrap(~Embarked)
+```
+Este nos confirma los embarcados en S eran mayoritariamente de clase 3 por lo que tiene sentido que su ratio de supervivencia sea menor.
+
+Vemos ahora el análisis con contrastes de hipótesis.
+
+Primero analizamos si hay relación entre las variables **Embarked** y **Survived** usando de nuevo la Chi-Squared
+
+```{r}
+test_chisq <- chisq.test(data$Embarked, data$Survived)
+test_chisq
+df_chisq <- (length(levels(data$Embarked)) -1 ) * (length(levels(data$Survived)) - 1)
+valorcritico_chisq <- qchisq(p=0.05, df = df_chisq, lower.tail = FALSE)
+cat(sprintf("El estadístico obtenido es: %f y el valor crítico es: %f", test_chisq$statistic, valorcritico_chisq))
+```
+
+De nuevo se rechaza la hipótesis nula, por lo tanto las variables son dependientes.
+
+#### Survived y Child 
+
+Analizamos ahora la nueva variable creada **Child** que corresponde a los niños de edad menor o igual a 8 años (que es un 1 en el valor de la clase)
+
+De nuevo un análisis visual primero:
+
+```{r}
+ggplot(data,aes(x=Child,fill=Survived))+geom_bar(position ='fill')
+```
+Parece que si que hay mas esperanza de supervivencia en ese caso.
+
+Aplicamos el test de Fisher para comprobar si tienen las mismas probabilidades de supervivencia que el resto de pasajeros. 
+
+```{r}
+fisher.test(table(data$Child, data$Survived))
+```
+
+Se rechaza la hipótesis nula, es decir que las propociones no coinciden. Analizamos ahora si las probabilidades de supervivencia son mayores o menores. Para ello analizamos si la proporcion de no-niños que no sobreviven es menor a la proporoción de niños que no sobreviven:
+
+```{r}
+fisher.test(table(data$Child, data$Survived), alternative = 'greater')
+```
+Se rechaza la hipótesis nula, y se acepta la alternativa, es decir que la probabilidad de muerte de los no-niños es mayor que la de los niños.
+
+```{r}
+tab.contigencia = table(data$Child, data$Survived)
+tab.contigencia
+odd_ratio = (tab.contigencia[1,1] / tab.contigencia[1,2]) /
+  (tab.contigencia[2,1] / tab.contigencia[2,2])
+odd_ratio
+```
+
+#### Survived y Age
+
+Vamos a analizar ahora si la media de edad de las personas que murieron es coincidente con la media de edad que sobrevivieron.
+Aplicamos el test t-Test
+
+```{r}
+t.test(data$Age[which(data$Survived==0)], data$Age[which(data$Survived == 1)])
+```
+
+Se observa que el p-valor es inferior a 0.05, con lo que rechazamos la hipótesis nula (que las medias de edad son coincidentes para fallecidos y supervivientes), pero como ya sabíamos, la distribución de Age no sigue una normal, por lo que vamos a aplicar el test no paramétrico U de Mann-Whitney
+
+```{r}
+wilcox.test(x = data$Age[which(data$Survived==0)],
+            y = data$Age[which(data$Survived==1)],
+            paired =FALSE
+            )
+```
+
+La prueba no-paramétrica nos devuelve un p-value por encima de 0.05 y por tanto no rechazamos la hipótesis nula, con lo que podemos decir que la media de edad es coincidente entre los muertos y los supervivientes del accidente del Titanic.
+
+Gráficamente podemos comprobarlo mediante un Boxplot
+
+TODO###################### colores boxplot
+```{r}
+ggplot(data, aes(x=Survived, y=Age)) +
+  scale_x_discrete(name = "Survived", labels = c("0"="no", "1"="Yes")) +
+  geom_boxplot() +  
+  #geom_boxplot(color="black", fill = c(colores_defecto_ggplot[1], colores_defecto_ggplot[2])) +
+  ggtitle("Boxplot Survived (by Age")
+```
+
+Se ve claramente que las distribuciones son muy parecidas.
+
+#### Age y Embarked
+
+Para analizar si **Age** es independiente del puerto de embarque **Embarked** , podemos realizar un test Anova, donde la hipótesis nula nos dice que la media de la edad es independiente del puerto de embarque, es decir que la media de edad de la gente que subió en “C” (Cherbourg), coincide con la media de los que embarcaron en “Q” (Queenstown) y también con los que embarcaron en “S” (Southampton). Y por el contrario la hipótesis nula es que alguna de las medias es diferente. 
+
+```{r}
+modelo_anova <- aov(formula = Age ~ Embarked, data =data )
+resumen_anova <- summary(modelo_anova)
+resumen_anova
+```
+
+Observamos dos filas, una que pone “Embarked” y otra que pone “Residuals”. La primera fila corresponde a todo lo relativo a la varianza explicada (la de lavariable independiente “Embarked”) y la segunda fila relativo a la varianza no explicada o residual.
+
+**Explicación de los resultados del test Anova:**
+
+*Df* son los grados de libertad, para el caso de la varianza explicada (la de la variable independiente) es k-1. En nuestro caso como “Embarked” tiene 3 valores posibles, entonces Df=2.
+
+Para la parte de la varianza residual, es n - k, por tanto el valor Df=888 (891 son los registros del dataframe, si le restamos los 2 de antes quedan los 888).
+
+*Sum Sq* es la suma de la diferencia de los cuadrados, conocidos como SCDe (variación entre-grupos) y SCDi (variación intra-grupos). La función nos ha devuelto 427 y 175873 respectivamente.
+
+*Mean Sq* es la media cuadrática referente a entre-grupos e intra-grupos. Lo que también llamamos como Varianza explicada (línea superior, es decir 213.6) y varianza no explicada (línea inferior, es decir 198.1 ). Corresponde al cociente entre la suma de diferencias de cuadrados y los grados de libertad, es decir realmente Mean Sq = Sum Sq / Df lo que se puede comprobar realizando los cálculos sobre los datos anteriores.
+
+*F* Es el estadístico (Fisher-Snedecor), que es el cociente entre la varianza explicada entre la varianza no explicada. Por tanto es el cociente entre los valores Mean Sq, siendo el numerador la fila superior (213.6) y el denominador la fila
+inferior (213.6). El valor del cociente es 0.956, es decir el estadístico F.
+
+*Pr(>F)* Es la probabilidad asociada, el p-valor que nos indicará si se rechaza o no la hipotesis nula. En este caso el valor es: 0.442 que es mayor que 0.05 y nos permite aceptar (no rechazar) la hipótesis nula que decía que las medias de la variable “Age” en función del valor de “Embarked” eran iguales.
+
+Revisamos los distintos gráficos que nos proporciona anova
+
+- Gráfico Residuals vs Fitted
+```{r}
+plot(modelo_anova, 1)
+```
+
+Esta gráfica nos muestra si los residuos tienen patrones no lineales. Puede existir una relación no lineal entre las variables explicativas y la variable explicada, y ese patrón podría verse en esta gráfica si el modelo no captura esa relación no
+lineal. Si los residuos están igualmente distribuidos alrededor de una línea horizontal sin patrones diferentes, es una buena señal de que no hay relaciones no lineales.
+
+En nuestro caso concreto, se ve una línea casi horizontal (hay una mini curva) y los residuos se distribuyen alrededor de dicha línea. Podemos decir que no hay indicios de relaciones no lineales.
+
+- Gráfico Normal Q-Q
+```{r}
+plot(modelo_anova, 2)
+```
+
+Si no nos ponemos muy estrictos en la exigencia, con el gráfico Normal Q-Q podemos ver que la variable dependiente sigue una distribución aproximadamente normal. La mayoría de los puntos se encuentran alineados en la línea de puntos y solamente es en los extremos donde esa situación no se cumple.
+
+- Gráfica Scale-Location:
+
+```{r}
+plot(modelo_anova, 3)
+```
+
+La gráfica Scale-Location también es conocida con el nombre de gráfica Spread-Location. Aquí vemos si los residuos se reparten de forma equitativa.En nuestro ejemplo, vemos casi una recta horizontal y los puntos se distribuyen de forma muy similar a los lados de la línea y en los extremos también parece un gráfico simétrico (tanto en horizontal como en vertical). Es decir que el gráfico nos está indicando que se cumple la homocedasticidad en nuestro modelo.
+
+- Gráfica Residuals vs Leverage
+
+```{r}
+plot(modelo_anova, 5)
+```
+
+Esta gráfica sirve para ayudarnos a encontrar casos influyentes (es decir, sujetos) si es que los hay. No todos los valores atípicos son influyentes en el análisis de regresión lineal. En el caso de existir valores extremos (outliers), puede que no sean influyentes para determinar la línea de regresión. Eso significa que los resultados no serían muy diferentes si los incluimos o excluimos del análisis, es decir no son influyentes. Por otra parte, algunos casos podrían ser muy influyentes, incluso aunque parezca que están dentro de un rango razonable de los valores. Pueden ser casos extremos contra una línea de regresión y pueden alterar los resultados si los excluimos del análisis. Es decir, estos no están alineados (tendencia) con la mayoría de los casos.
+
+Tenemos que buscar casos que estén fuera de una línea discontinua (que es la distancia de Cook). Cuando encontremos casos fuera de la distancia de Cook (es decir que tienen puntuación alta de distancia de Cook) se consideran casos influyentes en los resultados de la regresión. Y esa regresión se verá afectada si excluimos esos casos.
+
+- Grafica Distancia de Cook
+
+Otra forma de mostrar la distancia de Cook es usando el gráfico que proporciona Anova
+
+```{r}
+plot(modelo_anova, 4)
+```
+
+Después de este análisis y dando por aceptadas las condiciones del cumplimiento de Anova, podemos afirmar que las medias de edad en los diferentes puertos de Embarke es coincidente.
+Y de hecho, si vemos el Boxplot de la variable “Age” en función de la variable “Embarked”:
+
+TODO###################Hue_pal
+```{r}
+ggplot(data, aes(x=Embarked, y=Age)) + 
+  geom_boxplot() +
+  #geom_boxplot(fill = (hue_pal()(3))
+  ggtitle("Boxplot Age (by Embarked")
+```
+
+#### Price y Pclass
+
+Intentamos realizar Anova con etas dos variables, usando como hipótesis nula que el precio medio pagado es igual para cada una de las 3 clases
+
+```{r}
+modelo_anova <- aov(formula = Price ~ Pclass, data =data )
+resumen_anova <- summary(modelo_anova)
+resumen_anova
+```
+Si mostramos los gráficos:
+
+```{r}
+plot(modelo_anova)
+```
+
+Observamos que no se cumplen las condicies para aplicar Anova y el test no tienve valor.
+Vamos a intentar usar un test no paramétrico, Kruskal Wallis
+
+```{r}
+modelo_kruskal <- kruskal.test(formula = Price ~ Pclass, data =data )
+modelo_kruskal
+```
+
+El resultado de este test arroja un p-value inferior a 0.05 y por tanto rechazamos la hipótesis nula.
+
+Lo podemos comprobar también visualmente con el boxplot relativo a ello:
+
+TODO###################Hue_pal
+```{r}
+ggplot(data, aes(x=Pclass, y=Price)) + 
+  geom_boxplot() +
+  #geom_boxplot(fill = (hue_pal()(3))
+  ggtitle("Boxplot Price (by Pclass)")
+```
+
+### Modelos
+
+TODO############ explicación mejor de los modelos
+Vamos a aplicar diversos modelos
+
+
+#### Modelo de regresión logística
+
+
 
 En función de los datos y el objetivo del estudio, aplicar pruebas de contraste de hipótesis,
 correlaciones, regresiones, etc. Aplicar al menos tres métodos de análisis diferentes.
+
+
 
 ******
 # Representación de los resultados a partir de tablas y gráficas.
