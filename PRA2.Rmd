@@ -25,6 +25,10 @@ knitr::opts_chunk$set(eval=T, echo=T)
 library(funModeling)
 library(mice)
 library(car)
+library(gmodels)
+library(kableExtra)
+library(gridExtra)
+library(grid)
 ```
 
 
@@ -117,6 +121,7 @@ remove(data_unique)
 Se comprueba que la dimensionalidad ha quedado exactamente igual que cuando cargamos el dataset, por lo tanto, no hay registros duplicados (nos referimos a completos duplicados).
 
 Mostramos una muestra de los primeros registros de nuestro dataframe:
+TODO#########
 
 ```{r}
 
@@ -150,7 +155,7 @@ Creamos un nuevo dataframe (llamado "ticket_personas") con las variables **Ticke
 df_status(ticket_personas)
 ```
 
-Este nuevo dataframe lo combinamos con nuestro dataframe original (un join) a travñes del número de ticket (variable **Ticket**) para poder incorporar el número de personas al dataframe original. Después de juntarlos eliminamos el df ticket_personas pues no lo necesitaremos.
+Este nuevo dataframe lo combinamos con nuestro dataframe original (un join) a través del número de ticket (variable **Ticket**) para poder incorporar el número de personas al dataframe original. Después de juntarlos eliminamos el df ticket_personas pues no lo necesitaremos.
 
 ```{r}
 data <- merge(data, ticket_personas, by = "Ticket")
@@ -455,7 +460,7 @@ Se considera un valor extremo, outlier, a un valor fuera de rango. Son valores q
 a aquel que se encuentra alejado de la media unas tres veces la desviación típica.
 En nuestro caso vamos a comenzar por separar aquellas variables que son numéricas y verlas en un gráfico bloxplot:
 
-#########################Gráfico boxplot variables numéricas
+TODO#########################Gráfico boxplot variables numéricas
 ```{r}
 
 ```
@@ -1075,10 +1080,159 @@ ggplot(data, aes(x=Pclass, y=Price)) +
 TODO############ explicación mejor de los modelos
 Vamos a aplicar diversos modelos
 
+Vamos a utilizar como variables explicativas las variables que traía por defecto el conjunto de datos original (menos las que hemos eliminado en el proceso de transformación y limpieza de datos ya comentado).
+
+Creamos un conjunto de entrenamiento y un conjunto de test. Es decir,vamos a realizar una partición, un 75% de datos para el entrenamiento, y el 25% restante para validar los modelos.
+
+```{r}
+set.seed(123)
+library(caTools)
+split = sample.split(data$Survived, SplitRatio = 0.75)
+data_train = subset(data, split == TRUE)
+data_test = subset(data, split == FALSE) 
+```
 
 #### Modelo de regresión logística
 
+Un modelo de regresión logística es un tipo de análisis de regresión que se utiliza para predecir el resultado de una variable categórica, en función de las variables independientes. En nuestro caso, la variable objetivo “Survived” es una variable categórica binaria, es decir que tomar valor de 0 o 1 (verdadero o falso). La variable toma el valor 1 cuando el pasajero ha sobrevivido al accidente, y 0 en caso contrario.
 
+- Primer modelo glm
+
+Creamos un primer modelo glm1 con las variables "original": **Pclass**, **SibSp**, **Parch**, **Sex**, **Age**, **Fare** y **Embarked**
+
+```{r}
+modelo_glm1 <- glm(formula=Survived~ Pclass+SibSp+Parch+Sex+Age+Fare+Embarked, data = data_train, family = binomial(link = "logit"))
+summary(modelo_glm1)
+```
+
+Se puede observar en este modelo que tanto las variables “Fare” como “Parch” no son significativas, es decir, no están aportando nada a la hora de predecir la variable “Survived”.
+Además, podemos comprobar el “sentido” de la significación. Por ejemplo, vemos como significativa la variable dummy. Con las variables categóricas se crean automáticamente tantas variables dummy como niveles – 1. En el caso de la variable Sex, al tener 2 valores ha creado la variable “Sexmale”, es decir la parte correspondiente a hombres, mientras que la parte de mujeres forma parte del Intercept del modelo. Concretamente vemos que “Sexmale” es una variable significativa, pero con valor negativo (de las más negativas junto con “Pclass3”). Eso significa que esas variables son una influencia “negativa” de cara a la supervivencia. Es decir, esas variables contribuyen negativamente a la supervivencia, se puede ver por ejemplo que Pclass3 afecta más negativamente que Pclass2.
+
+Ahora usamos el conjunto de datos de test para validar nuestro modelo
+
+
+TODO#################NO consigo que funcione el predict y el crosttable
+```{r}
+predict_glm1 <- predict.glm(modelo_glm1, data_test, type = 'terms')
+
+```
+
+```{r}
+csstab_glm1 <- CrossTable(data_test$Survived, predict_glm1,
+           prop.chisq = FALSE, 
+           proc.c = FALSE, 
+           prop.r = FALSE, 
+           dnn = c('Reality', 'Prediction'))
+```
+
+- Segundo modelo glm
+
+Construimos otro modelo (glm2), similar al anterior pero esta vez partiendo de los resultados del modelo anterior, le vamos a quitar aquellas variables que vimos que no eran significativas para el modelo de predicción. Por lo tanto, tendremos un modelo2 cuyas variables a utilizar serán **Pclass**, **SibSp**, **Sex** y **Age**.
+
+```{r}
+modelo_glm2 <- glm(formula=Survived~ Pclass+SibSp+Sex+Age, data = data_train, family = binomial(link = "logit"))
+summary(modelo_glm2)
+```
+
+Se comprueba que todas las variables utilizadas son variables significativas para el modelo. Además, el modelo aprece haber mejorado un poco en cuanto a la predicción:
+
+TODO######Código para predict y crosstable
+
+
+
+- Tercer modelo glm
+
+Hasta ahora se han utilizado las variables del conjunto de datos “original”. Vamos a construir otro modelo (glm3), pero esta vez vamos a intentar utilizar alguna de las variables que hemos construido para ayudar a predecir la supervivencia. Para este caso vamos a utilizar las variables nuevas **Child** y también **FamilySize**. Además de esas dos variables, vamos a utilizar otras tres variables originales: **Pclass**, **Sex** y **Age**.
+
+```{r}
+modelo_glm3 <- glm(formula=Survived~ Sex+Pclass+Age+Child+FamilySize,, data = data_train, family = binomial(link = "logit"))
+summary(modelo_glm3)
+```
+
+Al igual que pasaba en el modelo2, todas las variables utilizadas han resultado significativas, y además el AIC del modelo ha mejorado ligeramente. Además la capacidad predictiva del modelo ha aumentado un poco:
+
+TODO###Código matriz confusion predict y crosstable
+
+
+- Cuarto modelo glm
+
+Antes de construir un cuarto modelo, vamos a analizar si existen variables independientes que afecten a la variable dependiente.
+Para ello primero definimos una variable 'objetivo' pero numérica
+
+```{r}
+data$SurvivedNum <- as.integer(as.character(data$Survived))
+```
+
+Agrupamos el dataset por las variables Sex y Pclass
+
+```{r}
+data.agrup <- data %>% group_by(Sex, Pclass)
+```
+
+Calculamos la media creando un campo 'Mean_survived' de la media
+
+```{r}
+data.mediasurvived <- summarize(.data = data.agrup, Mean_Survived = mean(SurvivedNum))
+kable(data.mediasurvived)
+```
+
+
+```{r}
+plot1 <- ggplot(data = data.mediasurvived, aes(x=Pclass, y = Mean_Survived, group = Sex)) +
+  geom_line(aes(color=Sex), size=1) +
+  geom_point(aes(color = Sex, shape=Sex), size=2)+
+  theme(legend.position="top") +
+  theme(legend.title = element_text(size=12), legend.text = element_text(size=11))
+plot2 <- ggplot(data = data.mediasurvived, aes(x=Sex, y = Mean_Survived, group = Pclass)) +
+  geom_line(aes(color=Pclass), size=1) +
+  geom_point(aes(color = Pclass, shape=Pclass), size=2)+
+  theme(legend.position="top") +
+  theme(legend.title = element_text(size=12), legend.text = element_text(size=11))
+grid.arrange(plot1, plot2, ncol = 2)
+  
+```
+
+Tanto la variable **Sex** como la variable **Pclass** producen efecto en la variable **Mean_Survived**. También podemos comprobar cómo se produce interacción entre las variables **Sex** y **Pclass** respecto a **Mean_Survived**. Podemos ver cómo hay un descenso muy pronunciado cuando pasamos de mujeres a hombres y estamos tratando la clase 2ª. Observamos además cómo pasar a tercera clase afecta muy negativamente en el caso de las mujeres, ya que aunque no es una línea paralela, el hecho de estar en 1ª o 2ª clase no parece demasiado importante en el caso de las mujeres, pero al pasar a 3ª clase la caída de la media de supervivencia es muy importante.
+
+
+
+Agrupamos el dataset por las variables AgeInterval y Sex y realizamos el mismo proceso
+
+```{r}
+data.agrup <- data %>% group_by(AgeInterval, Sex)
+
+data.mediasurvived <- summarize(.data = data.agrup, Mean_Survived = mean(SurvivedNum))
+kable(data.mediasurvived)
+
+plot1 <- ggplot(data = data.mediasurvived, aes(x=Sex, y = Mean_Survived, group = AgeInterval)) +
+  geom_line(aes(color=AgeInterval), size=1) +
+  geom_point(aes(color = AgeInterval, shape=AgeInterval), size=2)+
+  theme(legend.position="top") +
+  theme(legend.title = element_text(size=12), legend.text = element_text(size=11))
+plot2 <- ggplot(data = data.mediasurvived, aes(x=AgeInterval, y = Mean_Survived, group = Sex)) +
+  geom_line(aes(color=Sex), size=1) +
+  geom_point(aes(color = Sex, shape=Sex), size=2)+
+  theme(legend.position="top") +
+  theme(legend.title = element_text(size=12), legend.text = element_text(size=11))
+grid.arrange(plot1, plot2, ncol = 2)
+  
+```
+
+En este caso llamala atención el impacto de cuando pasamos el primer intervalo (menores o iguales
+a 12 años) al siguiente intervalo (de 13 a 17 años). La proporción de las mujeres aumenta mientras que en el caso de los hombres disminuye drásticamente. Además, no parece haber apenas diferencia en el primer tramo (los niños, se salvan con independencia del género)
+
+
+Ahora construimos nuestro cuarto modelo de regresión logística. Utilizaremos algunas variables ya usadas en otros modelos más **AgeInterval**:**Sex**. También hemos añadido la interacción que generan **Sex**:**Pclass**. A estas variables le sumamos también las variables independientes **Sex**, **Parch** y **SibSp**.
+
+```{r}
+modelo_glm4 <- glm(formula=Survived~Sex+Parch+SibSp+AgeInterval:Sex+Sex:Pclass, data = data_train, family = binomial(link = "logit"))
+summary(modelo_glm4)
+```
+TODO##############Matriz de confusión
+
+#### Resumen modelos regresion
+
+TODO##### Curvas ROC
 
 En función de los datos y el objetivo del estudio, aplicar pruebas de contraste de hipótesis,
 correlaciones, regresiones, etc. Aplicar al menos tres métodos de análisis diferentes.
