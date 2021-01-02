@@ -1,6 +1,6 @@
 ---
 title: 'Tipologia y Ciclo de vida de los Datos. Practica 2'
-author: "Autores: Alexis Arroyo y Gabriel Pulido de Torres"
+author: "Autores: Alexis Germán Arroyo Peña y Gabriel Pulido de Torres"
 date: "Enero 2020"
 fontfamily: arev
 output:
@@ -10,8 +10,7 @@ output:
     latex_engine: xelatex
     number_sections: true
     df_print: kable
-    includes:
-      in_header: mystyle.sty 
+
   html_document:
     highlight: default
     number_sections: yes
@@ -1532,8 +1531,8 @@ TODO##### Exportación de los datos
 
 | Contribuciones              | Firma                                    | 
 |-----------------------------|------------------------------------------|
-| Investigación Previa        | Alexis Arroyo, Gabriel Pulido de Torres  |
-| Redacción de las respuestas | Alexis Arroyo, Gabriel Pulido de Torres  |
-| Desarrollo código           |  Alexis Arroyo, Gabriel Pulido de Torres |
+| Investigación Previa        | Alexis Germán Arroyo Peña, Gabriel Pulido de Torres  |
+| Redacción de las respuestas | Alexis Germán Arroyo Peña, Gabriel Pulido de Torres  |
+| Desarrollo código           | Alexis Germán Arroyo Peña, Gabriel Pulido de Torres |
 
 # Bibliografía y referencias
