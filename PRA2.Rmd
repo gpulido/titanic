@@ -1,7 +1,7 @@
 ---
 title: 'Tipologia y Ciclo de vida de los Datos. Practica 2'
 author: "Autores: Alexis Germán Arroyo Peña y Gabriel Pulido de Torres"
-date: "Enero 2020"
+date: "Enero 2021"
 fontfamily: arev
 output:
   pdf_document:
@@ -48,6 +48,17 @@ library(ggpubr)
 library(caTools)
 library(factoextra)
 library(corrplot)
+library(knitr)
+library(sqldf)
+library(readr)
+library(scales)
+library(pROC)
+library(xgboost)
+library(randomForest)
+library(rpart.plot)
+library(tidyr)
+library(beeswarm)
+
 ```
 
 # Descripción del dataset. ¿Por qué es importante y qué pregunta/problema pretende responder?
@@ -134,10 +145,11 @@ remove(data_unique)
 Se comprueba que la dimensionalidad ha quedado exactamente igual que cuando cargamos el dataset, por lo tanto, no hay registros duplicados (nos referimos a completos duplicados).
 
 Mostramos una muestra de los primeros registros de nuestro dataframe:
-TODO#########
 
 ```{r message= FALSE, warning=FALSE}
+summary(data)
 
+df_status(data)
 ```
 
 Hay algunas variables que carecen de interés por ser identificativas de cada registro. Se tratan de “PassengerId”, “Ticket” y “Name”. No nos interesa tener unívocamente identificado cada caso para realizar ningún tipo de análisis, no aportan nada. 
@@ -325,7 +337,7 @@ Tampoco se aprecian diferencias significativas en este caso con respecto a las m
 Representamos visualmente la relación entre Age y Pclass:
 
 ```{r message= FALSE, warning=FALSE}
-titulo <- 'Age vs Embarked'
+titulo <- 'Age vs Pclass'
 ggplot(data_NoNA, aes(y=Age, x=Pclass, fill=Pclass)) + 
   geom_boxplot() + labs(title = paste0('Boxplot: ', titulo)) + ylab("Age") + xlab("Pclass")
 ```
@@ -333,9 +345,12 @@ ggplot(data_NoNA, aes(y=Age, x=Pclass, fill=Pclass)) +
 En este caso si se observa una relación entre la edad y la clase en que viajaban los pasajeros: Los pasajeros de clase 1 (alta) tenían generalmente mayor edad que los de clase 2 (media) e igualmente sucede con los de clase 3 (baja). 
 
 #### Age vs Variables numéricas
-TODO######### código para la correlación
-```{r message= FALSE, warning=FALSE}
 
+```{r message= FALSE, warning=FALSE}
+lista<-sapply(data, is.numeric) 
+data_num_NoNA = data_NoNA[,lista]
+corrplot(cor(data_num_NoNA), method="number")
+corrplot.mixed(cor(data_num_NoNA))
 ```
 
 Se observa que existe correlación negativa con **SibSp** y con **Parch** (también con **FamilySize**, pero eso es completamente normal porque **FamilySize** es una transformación lineal de las otras 2). También hay correlación positiva con **Price**, pero entendemos que podemos tener en cuenta la parte familiar por el tema de esposa, hijos, hermanos, etc. puede tener efecto en la edad.
@@ -473,9 +488,13 @@ Se considera un valor extremo, outlier, a un valor fuera de rango. Son valores q
 a aquel que se encuentra alejado de la media unas tres veces la desviación típica.
 En nuestro caso vamos a comenzar por separar aquellas variables que son numéricas y verlas en un gráfico bloxplot:
 
-TODO#########################Gráfico boxplot variables numéricas
+## Gráfico boxplot variables numéricas
+ 
 ```{r message= FALSE, warning=FALSE}
-
+lista<-sapply(data, is.numeric) 
+data_num<-data[,lista] 
+boxplot(data_num,las=2)
+var.continuas <- vector()
 ```
 
 De todas las variables numéricas sólo 3 son contínuas: **Age**, **Price** y **Fare**
@@ -510,14 +529,17 @@ Los valores, además, están bien distribuidos, los más altos en las clases alt
 
 Por todo esto, decidimos no realizar ninguna acción con estos outliers ya que incluso ueden estar aportando información importante:
 
-TODO################## Gráfico outlier Fare
-```{r message= FALSE, warning=FALSE}
+## Gráfico outlier Fare
 
+```{r message= FALSE, warning=FALSE}
+boxplot(data$Fare~data$Pclass,xlab="Pclass",ylab="Fare",
+        col=c("blue","yellow","red"))
 ```
 
 ### Price
 
 Hacemos un análisis similar al realizado con  Fare:
+
 ```{r message= FALSE, warning=FALSE}
 data_out <- as.data.frame(data$Price)
 data_out$outlier <- FALSE
@@ -539,9 +561,11 @@ boxplot.stats(data$Price)$out
 ```
 
 Y al igual que con **Fare**, los valores más altos en las clases altas:
-TODO#############Gráfico boxplot Fare
-```{r message= FALSE, warning=FALSE}
 
+##Gráfico boxplot Fare
+
+```{r message= FALSE, warning=FALSE}
+boxplot(data$Price~data$Pclass,xlab="Pclass",ylab="Price",col=c("blue","yellow","red"))
 ```
 
 Al igual que con **Fare** optamos por considerarlos valores válidos y no realizamos ninguna accion.
@@ -689,7 +713,20 @@ por tanto se han rechazado la hipótesis nula (que la variable sigue una distrib
 
 No obstante, vamos a revisar gráficamente la distribución de cada una de las variables usando su histograma, curva de densidad y gráficas Q-Q
 
-TODO#########################Graficas histogŕamas y q-q
+```{r message= FALSE, warning=FALSE}
+for (i in 1:length(var.continuas)) {
+  variable=var.continuas[i]
+  #Histograma
+  print(ggplot(data, aes(data[,variable])) + 
+          geom_histogram(aes(y = ..density..), bins=50, fill="steelblue", color="blue") + xlab(variable) +
+          stat_function(fun = dnorm, args = list(mean = mean(data[,variable]), sd = sd(data[,variable]))))
+  #Gráfica Q-Q
+  qqnorm(data[,variable], main=paste0('Normal Q-Q Plot ', '(Variable "', variable,'")'))
+  qqline(data[,variable], col=2)
+  
+  print(variable)
+}
+```
 
 ### Homocedasticidad (comprobación de varianzas)
 
@@ -708,13 +745,23 @@ La variable Age está próxima a una distribución normal por lo cual podemos ut
 Primero analizamos si las varianzas son iguales cuando comprobamos **Age** y el grupo es **Survived**, es decir estamos comprobando la homogeneidad de varianzas de la edad en los grupos de supervivientes y no supervivientes.
 
 ```{r message= FALSE, warning=FALSE}
-
 leveneTest(data = data, Age ~ Survived, center = mean)
 ```
 En este caso el p-value es superior a 0.05 y por tanto asumimos que hay homogeneidad de varianzas entre los grupos
 
 
-TODO############# Representación muestras forma gráfica
+## Representación muestras forma gráfica
+
+```{r message= FALSE, warning=FALSE}
+
+colores_defecto_ggplot = (hue_pal()(2))
+ggplot(data, aes(x = Survived, y = Age)) +
+  geom_jitter(aes(color=Survived), position = position_jitter(0.05)) +
+  scale_color_manual(values = colores_defecto_ggplot) + 
+  scale_x_discrete(name="Survived", breaks=c("0", "1"), labels=c("No", "Yes"))
+fligner.test(Age ~ Survived, data=data)
+
+```
 
 ##### Age con Embarked
 
@@ -957,12 +1004,12 @@ La prueba no-paramétrica nos devuelve un p-value por encima de 0.05 y por tanto
 
 Gráficamente podemos comprobarlo mediante un Boxplot
 
-TODO###################### colores boxplot
 ```{r message= FALSE, warning=FALSE}
+colores_defecto_ggplot = (hue_pal()(2))
 ggplot(data, aes(x=Survived, y=Age)) +
   scale_x_discrete(name = "Survived", labels = c("0"="no", "1"="Yes")) +
   geom_boxplot() +  
-  #geom_boxplot(color="black", fill = c(colores_defecto_ggplot[1], colores_defecto_ggplot[2])) +
+  geom_boxplot(color="black", fill = c(colores_defecto_ggplot[1], colores_defecto_ggplot[2])) +
   ggtitle("Boxplot Survived (by Age")
 ```
 
@@ -1043,11 +1090,9 @@ plot(modelo_anova, 4)
 Después de este análisis y dando por aceptadas las condiciones del cumplimiento de Anova, podemos afirmar que las medias de edad en los diferentes puertos de Embarke es coincidente.
 Y de hecho, si vemos el Boxplot de la variable “Age” en función de la variable “Embarked”:
 
-TODO###################Hue_pal
 ```{r message= FALSE, warning=FALSE}
 ggplot(data, aes(x=Embarked, y=Age)) + 
   geom_boxplot() +
-  #geom_boxplot(fill = (hue_pal()(3))
   ggtitle("Boxplot Age (by Embarked")
 ```
 
