@@ -1091,9 +1091,9 @@ Después de este análisis y dando por aceptadas las condiciones del cumplimient
 Y de hecho, si vemos el Boxplot de la variable “Age” en función de la variable “Embarked”:
 
 ```{r message= FALSE, warning=FALSE}
-ggplot(data, aes(x=Embarked, y=Age)) + 
-  geom_boxplot() +
-  ggtitle("Boxplot Age (by Embarked")
+ggplot(data, aes(x=Embarked, y=Age)) +
+  geom_boxplot(fill=(hue_pal()(3))) +
+  ggtitle("Boxplot Age (by Embarked)")
 ```
 
 #### Price y Pclass
@@ -1123,11 +1123,9 @@ El resultado de este test arroja un p-value inferior a 0.05 y por tanto rechazam
 
 Lo podemos comprobar también visualmente con el boxplot relativo a ello:
 
-TODO###################Hue_pal
 ```{r message= FALSE, warning=FALSE}
-ggplot(data, aes(x=Pclass, y=Price)) + 
-  geom_boxplot() +
-  #geom_boxplot(fill = (hue_pal()(3))
+ggplot(data, aes(x=Pclass, y=Price)) +
+  geom_boxplot(fill=(hue_pal()(3))) +
   ggtitle("Boxplot Price (by Pclass)")
 ```
 
@@ -1168,18 +1166,22 @@ Además, podemos comprobar el “sentido” de la significación. Por ejemplo, v
 Ahora usamos el conjunto de datos de test para validar nuestro modelo
 
 
-TODO#################NO consigo que funcione el predict y el crosttable
 ```{r message= FALSE, warning=FALSE}
-predict_glm1 <- predict.glm(modelo_glm1, data_test, type = 'terms')
+predict_glm1 <- predict.glm(object=modelo_glm1, newdata=data_test, type = "response")
+r1 = pROC::roc(response=data_test$Survived, predictor = predict_glm1)
+threshold_r1 <- coords(r1, "best", ret = "threshold")
+predict_glm1 <- ifelse(predict_glm1 < threshold_r1, 0, 1)
+mat.confusion_glm1 <- table(data_test$Survived, predict_glm1)
+mat.confusion_glm1
+pct.correcto_glm1 <- 100 * sum(diag(mat.confusion_glm1)) / sum(mat.confusion_glm1)
+print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",
+              pct.correcto_glm1))
 
-```
 
-```{r message= FALSE, warning=FALSE}
-#csstab_glm1 <- CrossTable(data_test$Survived, predict_glm1,
-#           prop.chisq = FALSE, 
-#           proc.c = FALSE, 
-#           prop.r = FALSE, 
-#           dnn = c('Reality', 'Prediction'))
+csstab_glm1 <- CrossTable(data_test$Survived, predict_glm1,
+                          prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
+                          dnn = c('Reality', 'Prediction'))
+
 ```
 
 - Segundo modelo glm
@@ -1193,9 +1195,21 @@ summary(modelo_glm2)
 
 Se comprueba que todas las variables utilizadas son variables significativas para el modelo. Además, el modelo aprece haber mejorado un poco en cuanto a la predicción:
 
-TODO######Código para predict y crosstable
+```{r message= FALSE, warning=FALSE}
+predict_glm2 <- predict.glm(object=modelo_glm2, newdata=data_test, type = "response")
+r2 = pROC::roc(response=data_test$Survived, predictor = predict_glm2)
+threshold_r2 <- coords(r2, "best", ret = "threshold")
+predict_glm2 <- ifelse(predict_glm2 < threshold_r2, 0, 1)
+mat.confusion_glm2 <- table(data_test$Survived, predict_glm2)
+mat.confusion_glm2
+pct.correcto_glm2 <- 100 * sum(diag(mat.confusion_glm2)) / sum(mat.confusion_glm2)
+print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",
+              pct.correcto_glm2))
+csstab_glm2 <- CrossTable(data_test$Survived, predict_glm2,
+                          prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
+                          dnn = c('Reality', 'Prediction'))
 
-
+```
 
 - Tercer modelo glm
 
@@ -1208,8 +1222,21 @@ summary(modelo_glm3)
 
 Al igual que pasaba en el modelo2, todas las variables utilizadas han resultado significativas, y además el AIC del modelo ha mejorado ligeramente. Además la capacidad predictiva del modelo ha aumentado un poco:
 
-TODO###Código matriz confusion predict y crosstable
+```{r message= FALSE, warning=FALSE}
+predict_glm3 <- predict.glm(object=modelo_glm3, newdata=data_test, type = "response")
+r3 = pROC::roc(response=data_test$Survived, predictor = predict_glm3)
+threshold_r3 <- coords(r3, "best", ret = "threshold")
+predict_glm3 <- ifelse(predict_glm3 < threshold_r3, 0, 1)
+mat.confusion_glm3 <- table(data_test$Survived, predict_glm3)
+mat.confusion_glm3
+pct.correcto_glm3 <- 100 * sum(diag(mat.confusion_glm3)) / sum(mat.confusion_glm3)
+print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",
+              pct.correcto_glm3))
 
+csstab_glm3 <- CrossTable(data_test$Survived, predict_glm3,
+                          prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
+                          dnn = c('Reality', 'Prediction'))
+```
 
 - Cuarto modelo glm
 
@@ -1284,13 +1311,56 @@ Ahora construimos nuestro cuarto modelo de regresión logística. Utilizaremos a
 ```{r message= FALSE, warning=FALSE}
 modelo_glm4 <- glm(formula=Survived~Sex+Parch+SibSp+AgeInterval:Sex+Sex:Pclass, data = data_train, family = binomial(link = "logit"))
 summary(modelo_glm4)
+
+predict_glm4 <- predict.glm(object=modelo_glm4, newdata=data_test, type = "response")
+r4 = pROC::roc(response=data_test$Survived, predictor = predict_glm4)
+threshold_r4 <- coords(r4, "best", ret = "threshold")
+predict_glm4 <- ifelse(predict_glm4 < threshold_r4, 0, 1)
+mat.confusion_glm4 <- table(data_test$Survived, predict_glm4)
+mat.confusion_glm4
+pct.correcto_glm4 <- 100 * sum(diag(mat.confusion_glm4)) / sum(mat.confusion_glm4)
+print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",
+              pct.correcto_glm4))
+
+csstab_glm4 <- CrossTable(data_test$Survived, predict_glm4,
+                          prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
+                          dnn = c('Reality', 'Prediction'))
 ```
-TODO##############Matriz de confusión
 
 ##### Resumen modelos regresion
 
-TODO##### Curvas ROC
+## Curvas ROC
 
+```{r message= FALSE, warning=FALSE}
+r1$auc
+r2$auc
+r3$auc
+r4$auc
+
+colores <- (hue_pal()(4))
+
+ggroc(list(glm1=r1, glm2=r2, glm3=r3, glm4=r4), 
+      aes=c("color"), linetype="dotted", size = 1.1) +
+  geom_segment(aes(x = 1, xend = 0, y = 0, yend = 1), 
+               color="grey", linetype="dashed") +
+  labs(color = "Modelos")
+
+g1<-ggroc(list(glm1=r1, glm2=r2), 
+          aes=c("color"), linetype="solid", size = 1) +
+  geom_segment(aes(x = 1, xend = 0, y = 0, yend = 1), 
+               color="grey", linetype="dashed") +
+  labs(color = "Modelos") +
+  facet_grid(.~name)
+g2<-ggroc(list(glm3=r3, glm4=r4), 
+          aes=c("color"), linetype="solid", size = 1) +
+  geom_segment(aes(x = 1, xend = 0, y = 0, yend = 1), 
+               color="grey", linetype="dashed") +
+  labs(color = "Modelos") +
+  facet_grid(.~name)
+grid.arrange(g1, g2, nrow=2)
+
+data$SurvivedNum <- NULL
+```
 
 #### Árboles de decisión
 
