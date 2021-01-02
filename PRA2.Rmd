@@ -1,6 +1,6 @@
 ---
 title: 'Tipologia y Ciclo de vida de los Datos. Practica 2'
-author: "Autores: Alexis Arroyo y  Gabriel Pulido de Torres"
+author: "Autores: Alexis Arroyo y Gabriel Pulido de Torres"
 date: "Enero 2020"
 fontfamily: arev
 output:
@@ -37,6 +37,18 @@ library(gmodels)
 library(kableExtra)
 library(gridExtra)
 library(grid)
+library(nortest)
+library(C50)
+library(caret)
+library(dplyr)
+library(rpart)
+library(rpart.plot)
+library(tibble)
+library(ggplot2)
+library(ggpubr)
+library(caTools)
+library(factoextra)
+library(corrplot)
 ```
 
 # Descripción del dataset. ¿Por qué es importante y qué pregunta/problema pretende responder?
@@ -49,8 +61,7 @@ Realizamos un primer contacto con el conjunto de datos, visualizando su estructu
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
 # Cargamos los paquetes R que vamos a usar
-library(ggplot2)
-library(dplyr)
+
 
 # Cargamos el fichero de datos
 data <- read.csv('train.csv',stringsAsFactors = FALSE, na.strings = "")
@@ -568,6 +579,7 @@ Donde vemos que podríamos tener 2 valores outliers, pero observando los valores
 
 ## Selección de los grupos de datos que se quieren analizar/comparar (planificación de los análisis a aplicar).
 
+
 Del dataset completo nos interesa poder realizar diferentes análisis en función de diferentes subconjuntos de datos, como puede ser el género, la clase en la que viajan los pasajeros, el puerto en el que han embarcado, incluso
 se pueden definir grupos por edad, y ver realmente si es cierto y se cumplió aquello que dicen en las películas “las mujeres y los niños primero” y poder comprobar si realmente los niños tienen mejor índice de supervivencia que los
 adultos.
@@ -654,7 +666,7 @@ Ahora recorremos todas las variables continuas aplicando los tres tests y añadi
 
 ```{r message= FALSE, warning=FALSE}
 var.continuas <-c("Age", "Fare", "Price")
-library(nortest)
+
 for (i in 1:length(var.continuas)){
   variable = var.continuas[i]
   #Test Shapiro-wil
@@ -746,9 +758,6 @@ fligner.test(Fare ~ Pclass, data = data)
 ```
 
 Comprobamos la variable “Fare”, los resultados indican que hay heterogeneidad de varianza de esas variables respecto a los grupos con los que se ha aplicado el test no paramétrico.
-
-¿?
-#### Price
 
 
 ## Aplicación de pruebas estadísticas para comparar los grupos de datos. 
@@ -1089,10 +1098,11 @@ Creamos un conjunto de entrenamiento y un conjunto de test. Es decir,vamos a rea
 
 ```{r message= FALSE, warning=FALSE}
 set.seed(123)
-library(caTools)
+
 split = sample.split(data$Survived, SplitRatio = 0.75)
 data_train = subset(data, split == TRUE)
-data_test = subset(data, split == FALSE) 
+data_test = subset(data, split == FALSE)
+
 ```
 
 #### Modelo de regresión logística
@@ -1237,15 +1247,293 @@ TODO##############Matriz de confusión
 
 TODO##### Curvas ROC
 
-En función de los datos y el objetivo del estudio, aplicar pruebas de contraste de hipótesis,
-correlaciones, regresiones, etc. Aplicar al menos tres métodos de análisis diferentes.
 
 #### Árboles de decisión
 
+#### Arboles train
+TODO
+
+#### Random Forest
+TODO
+
+
+#### C5.0
+
+C5.0 es el algoritmo sucesor de C4.5, publicado por John Ross Quinlan (1992), con el objetivo de crear árboles de clasificación. Entre sus características, destacan la capacidad para generar árboles de decisión simples, modelos basados en reglas, ensembles basados en boosting y asignación de distintos pesos a los errores. Este algoritmo ha resultado de una gran utilidad a la hora de crear modelos de clasificación y todas sus capacidades son accesibles mediante el paquete C50. Aunque comparte muchas características con los algoritmos de random forest y gradient boosting, cabe tener en cuenta algunas peculiaridades:
+
+- La medida de pureza empleada para las divisiones del árbol es la entropía.
+
+- El podado de los árboles se realiza por defecto, y el método empleado se conoce como pessimistic pruning.
+
+- Los árboles se pueden convertir en modelos basados en reglas.
+
+- Emplea un algoritmo de boosting más próximo a AdaBoost que a Gradient Boosting.
+
+- Por defecto, el algoritmo de boosting se detiene si la incorporación de nuevos modelos no aporta un mínimo de mejora.
+
+- Incorpora una estrategia para la selección de predictores (Winnowing) previo ajuste del modelo.
+
+- Permite asignar diferente peso a cada tipo de error.
+
+
+Creamos primero unas variables para simplificar el uso de los distintos modelos.
+- trainX corresponde al dataframe sin la variable Survived (para el conjunto de train)
+- trainy es el dataframe pero sólo con la variable Survived (para el conjunto de train)
+
+- testX corresponde al dataframe sin la variable Survived (para el conjunto de test)
+- testy es el dataframe pero sólo con la variable Survived (para el conjunto de test)
+
+
+```{r}
+trainX <- data_train[, c(1:3,5:12)]
+trainy <- data_train[, 4]
+testX <- data_test[, c(1:3,5:12)]
+testy <- data_test[, 4]
+```
+
+##### Importancia Atributos #####
+
+Vamos a crear una función que nos simplifique la generación de gráficas sobre la importancia de los atributos en un model de árbol C5.0.
+Mostraremos dos métricas
+
+- Usage: porcentaje de observaciones de entrenamiento que caen en todos los nodos generados tras una división en el que ha participado el predictor. Por ejemplo, en el caso de un árbol simple, el predictor empleado en la primera decisión recibe automáticamente una importancia del 100%, ya que todas las observaciones de entrenamiento caen en uno de los dos nodos hijos generados. Otros predictores puede que participen con frecuencia en divisiones, pero si en los nodos hijos solo caen unas pocas observaciones, su importancia puede ser próxima a cero. En el caso de boosting, se promedia la importancia de cada predictor en todos los árboles que forman el ensemble.
+
+- Splits: porcentaje de divisiones en las que participa cada predictor. No tiene en cuenta la importancia de la división.
+
+
+
+
+```{r message= FALSE, warning=FALSE}
+importancia <- function(fit_tree) {
+  imp_usage <- C5imp(fit_tree, metric = "usage")
+  imp_usage <- imp_usage %>%
+                       rownames_to_column(var = "predictor")
+  
+  imp_splits <- C5imp(fit_tree, metric = "splits")
+  imp_splits <- imp_splits %>%
+                       rownames_to_column(var = "predictor")
+  
+  
+  p1 <- ggplot(data = imp_usage, aes(x = reorder(predictor, Overall),
+                                             y = Overall, fill = Overall)) +
+      labs(x = "", title = "usage") +
+      geom_col() +
+      coord_flip() +
+      scale_fill_viridis_c() +
+      theme_bw() +
+      theme(legend.position = "none")
+  
+  p2 <- ggplot(data = imp_splits, aes(x = reorder(predictor, Overall),
+                                              y = Overall, fill = Overall)) +
+      labs(x = "", title = "splits") +
+      geom_col() +
+      coord_flip() +
+      scale_fill_viridis_c() +
+      theme_bw() +
+      theme(legend.position = "none")
+  ggarrange(p1, p2)
+}
+```
+
+
+##### Primer modelo c5.0
+
+Vamos a empezar realizando un primer modelo C5.0 con los valores por defecto y con las reglas:
+
+
+```{r}
+bc_tree <- C5.0(trainX, trainy, rules=TRUE )
+summary(bc_tree)
+```
+Errors muestra el número y porcentaje de casos mal clasificados en el subconjunto de entrenamiento. El árbol obtenido clasifica erróneamente 79 668 casos dados, una tasa de error del 11.8%.
+
+Aunque podríamos representar el árbol, nos han salido 21 reglas y es complicado de visualizar. Lo analizamos númericamente.
+
+Primero veamos visualmente la importancia de cada variable:
+
+
+```{r}
+importancia(bc_tree)
+```
+Está usando todas las variables, de ahí que nos salgan tantas reglas.
+
+Vamos a ver la precisión del modelo
+
+```{r message= FALSE, warning=FALSE}
+predicted_model <- predict( model, testX, type="class" )
+print(sprintf("La precisión del árbol es: %.4f %%",100*sum(predicted_model == testy) / length(predicted_model)))
+```
+Y su matriz de confusión:
+
+```{r message= FALSE, warning=FALSE}
+mat_conf<-table(testy,Predicted=predicted_model)
+mat_conf
+```
+Se observa que tenemos 35 errores de clasificación.
+
+##### Segundo modelo C5.0 con Winnowing
+
+Winnowing consiste en aplicar un algoritmo de clasificación (algoritmo Winnow) a los atributos para eliminar aquellos que sean de poca ayuda.
+
+Es una selección de atributos que se realiza antes de la creación del modelo.
+
+El conjunto de datos se divide por la mitad aleatoriamente y se crea un modelo inicial. Cada predictor se va quitando por turno y se analiza el efecto sobre la calidad del modelo (usando la otra mitad de la división aleatoria)
+
+Se marcan los predictores si su eliminación no incrementa la tasa de error. El modelo final se calcula usando todos los conjuntos de datos usando sólo los predictores no marcados.
+
+Se puede realizar winnowing en C5.0 simplemente usando un flag.
+
+```{r message= FALSE, warning=FALSE}
+bc_winno_tree <- C5.0(
+                      formula = Survived ~ ., 
+                      data    = data_train,
+                      rules   = TRUE,
+                      control = C5.0Control(seed = 123, winnow = TRUE)
+                    )
+summary(bc_winno_tree)
+```
+Tenemos bastantes menos reglas que antes.
+
+Vamos a ver cuantas variables ha utilizado ahora:
+
+```{r message= FALSE, warning=FALSE}
+importancia(bc_winno_tree)
+```
+Hay dos atributos que directamente no son usados, comprobamos si hemos mejorado la calidad del modelo. Usamos la matriz de confusión
+
+```{r message= FALSE, warning=FALSE}
+bc_winno_tree_pred <- predict( bc_winno_tree, testX, type="class" )
+```
+
+```{r message= FALSE, warning=FALSE}
+mat_conf<-table(testy, Predicted=bc_winno_tree_pred)
+mat_conf
+```
+Tenemos 30 errores en este caso.
+
+```{r message= FALSE, warning=FALSE}
+
+porcentaje_correct<-100 * sum(diag(mat_conf)) / sum(mat_conf)
+print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",porcentaje_correct))
+
+```
+
+Hemos mejorado casi dos puntos, obteniendo el mejor modelo por el momento
+
+
+##### Tercer modelo C5.0 usando boosting
+
+La implementación del C5.0 dispone de la posibilidad de aplicar un *Boosting* similar a *AdaBoost*, que permite combinar varios árboles (técnica de *Ensemble*) para producir mejores modelos predictivos que si sólamente usasemos un árbol de decisión simple.
+
+Para ello se utiliza el parámetro ```trials```, en el que le indicamos cuantas iteraciones (que a la postre son árboles distintos) debe utilizar para generar el modelo *ensemble*.
+
+Podríamos ir probando con distintos boosts variando el winnowing y los parámetros hasta encontrar el que mejor modelo nos generase.
+Es una labor tediosa que podemos simplificar usando la librería ```caret```, que proporciona una forma de entrenar modelos modificando sus parámetros, vamos a usarlo para el C5.0  mostrando la comparativa posteriormente.
+
+En este caso vamos a usar Cohen-Kappa como medición de calidad del modelo, y compararemos C5.0 generados con distintas iteraciones (boosting) combinándolo con winnowing y con rules/tree.
+
+
+```{r message= FALSE, warning=FALSE}
+
+tuned <- train(trainX, trainy, method = "C5.0", tuneLength = 11,
+ trControl = trainControl(method = "repeatedcv",
+ repeats = 5),
+ metric = "Kappa")
+```
+
+```{r message= FALSE, warning=FALSE}
+postResample(predict(tuned, testX), testy)
+plot(tuned, metric = "Kappa")
+```
+
+Los valores anteriores son orientativos y nos sirven para acotar más facilmente los parámetros en los que buscar.
+
+Vamos a crear el mejor árbol con winnowing y boost, usando 50 trials y sin reglas:
+
+```{r message= FALSE, warning=FALSE}
+bc_boost_tree <- C5.0(
+                      formula = Survived ~ ., 
+                      data    = data_train,
+                      rules   = FALSE,
+                      control = C5.0Control(seed = 123, winnow = TRUE),
+                      trials = 50
+                    )
+```
+
+
+Como antes, vemos la importancia de los atributos:
+
+```{r message= FALSE, warning=FALSE}
+importancia(bc_boost_tree)
+```
+Em este caso todos los atributos tienen un uso muy alto.
+
+De nuevo calculamos matriz de confusión
+
+```{r message= FALSE, warning=FALSE}
+bc_boost_tree_pred <- predict( bc_boost_tree, testX, type="class" )
+mat_conf<-table(testy, Predicted=bc_boost_tree_pred)
+mat_conf
+```
+Tenemos 27 errores en este caso.
+
+```{r message= FALSE, warning=FALSE}
+
+porcentaje_correct<-100 * sum(diag(mat_conf)) / sum(mat_conf)
+print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",porcentaje_correct))
+
+```
+Hemos conseguido mejorar en casi un punto porcentual.
+
 \newpage
 # Representación de los resultados a partir de tablas y gráficas.
-******
+TODO
+¿Ponemos algo explicando que se han ido mostrando a lo largo de los distintos puntos o simplemente lo quitamos?
+
 # Resolución del problema. A partir de los resultados obtenidos, ¿cuáles son las conclusiones? ¿Los resultados permiten responder al problema?
 
+Hemos procedido a realizar, sobre el conjunto de datos Titanic, las fases de limpieza, depuración y análisis de datos (eliminando variables innecesarias,
+imputando datos faltantes, comprobando supuestos estadísticos...), hasta finalmente implementar un conjunto de modelos de predicción basados en variables
+dadas y otras creadas nuevas.
+
+El problema que nos planteábamos era: ¿Dado el conjunto de datos que disponemos, podemos predecir la supervivencia o no de un pasajero?
+Los diferentes modelos creados intentan resolverlo con resultados de precisión más bien discretos.
+
+Los modelos que mejor han funcionado han sido los árboles de decisión C5.0, y sobre todo el tercer árbol con boosting de 50 y winnowing con casi un 88% de precisión. No obstante utiliza todos los atributos y no es fácil de visualizar.
+
+Del resto de modelos planteado destacaríamos tres de ellos con precisión de 83,78%: Dos regresiones
+logísticas usando datos enriquecidos con variables sintéticas, y un árbol de decisión con profundidad 5 para el que las variables más significativas resultaron ser
+las siguientes: **Sexmale**, **Pclass3** y **FamilySize** (aunque también hemos visto que hay otras variables influyentes en los modelos, y que eran de esperar
+como **Age** y sus variables derivadas, como **Child** y **AgeInterval** y que suponen también una lógica). 
+
+También hemos comprobado que la regresión logística con interacción de variables (modelo glm4) mejora la predicción de supervivientes (a costa de fallar algo más en los no supervivientes).
+Aunque la precisión total de ambos modelos fue equivalente, en el modelo de regresión logística ha fallado en que fallecen el 11,68% y el modelo predice que sobreviven (y sobreviven el 23.53% y el modelo predice lo contrario),
+mientras que en el árbol (tree2) se ha fallado en lo siguiente, fallecen realmente un 7,30% y el modelo predice que sobreviven (y sobreviven el 30,59% y el modelo predice que mueren). 
+
+Creemos que es preferible que se equivoque más en la predicción de que no van a sobrevivir y al final si lo hacen que en lo contrario (que se prediga que sobrevive y luego no lo haga)
+Esto parece tener sentido, ya que si observamos las 2 variables más importantes del árbol, Sexmale (hombres) y Pclass3 (3a clase), precisamente son las variables que suponen el mayor índice de mortalidad.
 
 
+## Exportación de los datos
+
+Vamos a exportar dos ficheros que estarán disponibles en el repositorio github:
+- Un fichero “titanic_final.csv” que contiene las 12 variables con las que se ha trabajado, con la imputación de los datos realizada, con las variables no utilizadas del dataset origen eliminadas, y con las transformaciones
+que hemos considerado necesarias.
+
+- Un fichero “titanic_predict.csv”, en el que además de las columnas que tiene el fichero anterior, tiene una columna nueva llamada “Survived_Predicted”, que es la columna con la predicción de la variable “Survived” realizada con el modelo escogido.
+
+TODO##### Exportación de los datos
+```{r}
+
+```
+
+
+# Tabla de contribuciones
+
+| Contribuciones              | Firma                                    | 
+|-----------------------------|------------------------------------------|
+| Investigación Previa        | Alexis Arroyo, Gabriel Pulido de Torres  |
+| Redacción de las respuestas | Alexis Arroyo, Gabriel Pulido de Torres  |
+| Desarrollo código           |  Alexis Arroyo, Gabriel Pulido de Torres |
+
+# Bibliografía y referencias
