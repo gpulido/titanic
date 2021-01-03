@@ -127,7 +127,12 @@ El objetivo es decidir si las variables aportadas son suficientes para crear un 
 \newpage
 # Integración y selección de los datos de interés a analizar.
 
-Hemos leido los datos en un dataframe (al que llamamos "data"). Vemos su dimensionalidad, los nombres y tipos de las variables:
+El conjunto de datos que se proporciona en Kaggle está dividido en dos partes, un conjunto de datos de train, y un conjunto de datos de test.
+La diferencia principal es que mientras que en el conjunto de datos de train disponemos del valor de la variable Survived, en el de test no disponemos de esa variable.
+
+Como parte de los modelos que vamos a diseñar son modelos supervisados, a la hora de validarlos no podemos usar el conjunto de datos de test, por lo que optamos trabajar sólamente con los de train sin fusionarlos. 
+
+En el apartado anterior leimos los datos en un dataframe (al que llamamos "data"). Vemos su dimensionalidad, los nombres y tipos de las variables:
 
 ```{r message= FALSE, warning=FALSE}
 dim.data.frame(data)
@@ -201,7 +206,7 @@ data <- select(data, -PassengerId, -Name, -Ticket, -PersonasTicket)
 
 ## FamilySize
 
-Revisando **Parch** (número de Padres / hijos a bordo) y **SibSp** (sibling: número de hermanos, hermanas, hermanastros y hermanastras  del pasajero, spouse: Marido o mujer del pasajero en el titanic ) vemos que las podemos agregar en una nueva variable **FamilySize** que será la suma de estas dos variables mas el propio viajero en cuestion. Por ello esta variable como mínimo valdra uno.
+Revisando **Parch** (número de Padres / hijos a bordo) y **SibSp** (sibling: número de hermanos, hermanas, hermanastros y hermanastras  del pasajero, spouse: Marido o mujer del pasajero en el titanic ) vemos que las podemos agregar en una nueva variable **FamilySize** que será la suma de estas dos variables más el propio viajero en cuestión. Por ello esta variable como mínimo valdrá uno.
 
 ```{r message= FALSE, warning=FALSE}
 data$FamilySize = data$SibSp + data$Parch + 1
@@ -209,7 +214,7 @@ data$FamilySize = data$SibSp + data$Parch + 1
 
 ## Revisión y conversion de tipos
 
-Tenemos algunas variables que, aunque a priori aparecen como “numeric” o “character” deberíamos convertir a “factor”. Estas variables son: “Survived”, “Pclass”, “Embarked” y “Sex”.
+Tenemos algunas variables que, aunque a priori aparecen como “numeric” o “character” deberíamos convertir a “factor”. Estas variables son: **Survived**, **Pclass**, **Embarked** y **Sex**.
 Tienen un número finito de valores y aunque puedan ser numéricas, ese número no nos aporta información con lo que los discretizamos convirtiendolos en factores:
 
 ```{r message= FALSE, warning=FALSE}
@@ -232,7 +237,7 @@ summary(data)
 \newpage
 # Limpieza de los datos.
 
-Analizamos los valores nulos y vacíos. Para ello nos valemos de la salida de la función *df_status*, que no s muestra un resumen del estado de nuestras 8 variables actuales:
+Analizamos los valores nulos y vacíos. Para ello nos valemos de la salida de la función *df_status*, que nos muestra un resumen del estado de nuestras 8 variables actuales:
 
 ```{r message= FALSE, warning=FALSE}
 df_status(data)
@@ -247,13 +252,12 @@ df_status(data)
 data %>% group_by(Embarked) %>% count(Embarked)
 ```
 
-
-
-En la tabla se observa que el campo **Age** tiene un 19.87% de nulos, **Cabin** más de un 77% y dos nulos en **Embarked**
+En la tabla se observa que el campo **Age** tiene un 19.87% de nulos, **Cabin** más de un 77% y **Embarked** tiene dos nulos.
+Analizamos cada uno de los atributos para decidir la mejor decisión con respecto a los nulos.
 
 #### Embarked
 
-Solo hay 2 valores nulos, al ser muy pocos casos y además la variable solo toma 3 posibles valores, imputamos el valor que mas se repite, que es Embarked=S (Southampton)
+Solo hay 2 valores nulos, al ser muy pocos casos y además la variable solo puede tomar 3 posibles valores, decidimos imputar el valor que más se repite, que es Embarked=S (Southampton)
 
 ```{r message= FALSE, warning=FALSE}
 data %>% group_by(Embarked) %>% count(Embarked)
@@ -285,10 +289,9 @@ Dado que el número de nulos es muy elevado, un 77%, se opta por eliminar esta v
 data <- select(data, -Cabin)
 ```
 
-
 #### Age
 
-Tiene mas del un 19% de calores nulos (concretamente 177 registros)
+Tiene mas del un 19% de valores nulos (concretamente 177 registros)
 
 Una opción para solucionarlos sería calcular la media del resto de registros e imputarla, pero vamos a estudiar si podemos delimitar la media a aplicar para obtener un resultado más depurado.
 
@@ -309,7 +312,7 @@ ggplot(data_NoNA, aes(Age))+
 
 Comprobamos si hay alguna relación entre la edad alguna del resto de variables, para tenerlo en cuenta a la hora de imputar valores
 
-#### Age vs Sex
+##### Age vs Sex
 
 Comprobamos gráficamente la relación entre la edad y el género
 
@@ -320,7 +323,7 @@ ggplot(data_NoNA, aes(y=Age, x=Sex, fill=Sex)) + geom_boxplot() + labs(title = p
 
 No se aprecian casi diferencias de edad en función del género
 
-#### Age vs Embarked
+##### Age vs Embarked
 
 Comprobamos gráficamente la relación entre la edad y el puerto de Embarque
 
@@ -330,9 +333,9 @@ ggplot(data_NoNA, aes(y=Age, x=Embarked, fill=Embarked)) +
   geom_boxplot() + labs(title = paste0('Boxplot: ', titulo)) + ylab("Age") + xlab("Embarked")
 ```
 
-Tampoco se aprecian diferencias significativas en este caso con respecto a las medias de edad en cada una de las clases de Embarked.
+Tampoco se aprecian diferencias significativas en este caso con respecto a las medias de edad en cada una de las clases de **Embarked**.
 
-#### Age vs Pclass
+##### Age vs Pclass
 
 Representamos visualmente la relación entre Age y Pclass:
 
@@ -344,7 +347,7 @@ ggplot(data_NoNA, aes(y=Age, x=Pclass, fill=Pclass)) +
 
 En este caso si se observa una relación entre la edad y la clase en que viajaban los pasajeros: Los pasajeros de clase 1 (alta) tenían generalmente mayor edad que los de clase 2 (media) e igualmente sucede con los de clase 3 (baja). 
 
-#### Age vs Variables numéricas
+##### Age vs Variables numéricas
 
 ```{r message= FALSE, warning=FALSE}
 lista<-sapply(data, is.numeric) 
@@ -355,9 +358,9 @@ corrplot.mixed(cor(data_num_NoNA))
 
 Se observa que existe correlación negativa con **SibSp** y con **Parch** (también con **FamilySize**, pero eso es completamente normal porque **FamilySize** es una transformación lineal de las otras 2). También hay correlación positiva con **Price**, pero entendemos que podemos tener en cuenta la parte familiar por el tema de esposa, hijos, hermanos, etc. puede tener efecto en la edad.
 
-#### Imputación de valores a Age
+##### Imputación de valores a Age
 
-Tras el análisis de las diversas relaciones entre las variables y Age vamos a realizar cuatro simulaciones diferentes de imputación y nos quedaremos con una sola:
+Tras el análisis de las diversas relaciones entre las variables y **Age** vamos a realizar cuatro simulaciones diferentes de imputación y nos quedaremos con una sola:
 
 - Caso 1: Imputar la media de **Age** a todos los elementos faltantes
 
@@ -371,7 +374,7 @@ ggplot(data, aes(Age1)) +
 ```
 
 
-- Caso 2: Imputar la media de **Age** pero por cada una de las clases(“Pclass”) ya que hemos visto que hay una relación entre ambas variables.
+- Caso 2: Imputar la media de **Age** pero por cada una de las clases(**Pclass**) ya que hemos visto que hay una relación entre ambas variables.
 
 ```{r message= FALSE, warning=FALSE}
 data$Age2 <- data$Age
@@ -390,8 +393,8 @@ ggplot(data, aes(Age2)) +
 medias_clase_fam <- as.data.frame(data_NoNA %>% group_by(Pclass, SibSp, Parch) %>% dplyr::summarize(Media_clase_fam = mean(Age)))
 ```
 
-Hacemos un meMerge entre nuestro dataset original y el de Medias (por Pclass, SIbSp y Parch) a través de las columnas usadas en la agrupación.
-El merge e sun LEFT JOIN ya que puede que no existan todas las combinaciones en medias_clase_fam
+Hacemos un merge entre nuestro dataset original y el de Medias (por **Pclass**, **SibSp** y **Parch**) a través de las columnas usadas en la agrupación.
+El merge es un LEFT JOIN ya que puede que no existan todas las combinaciones en medias_clase_fam
 
 ```{r message= FALSE, warning=FALSE}
 data$Age3 <- data$Age
@@ -399,7 +402,7 @@ data <- merge(data, medias_clase_fam, by = c("Pclass", "SibSp", "Parch"), all.x 
 data$Age3[is.na(data$Age3)] <- data$Media_clase_fam[is.na(data$Age3)]
 ```
 
-Como es posible que nos hayan quedado alguno sin poder asignar (al no existir la combinación Pclass + sibSp + Parch) a los que faltan (que son 7) les asignamos directamente por la Pclass sin tener en cuenta los otros valores
+Como es posible que nos hayan quedado alguno sin poder asignar (al no existir la combinación Pclass + sibSp + Parch) a los que faltan (que son 7) les asignamos directamente por la **Pclass** sin tener en cuenta los otros valores
 
 ```{r message= FALSE, warning=FALSE}
 data$Age3[is.na(data$Age3)&data$Pclass == 1] <- mean(data$Age3[!is.na(data$Age3)&data$Pclass == 1])
@@ -445,8 +448,7 @@ summary(data$Age3)
 summary(data$Age4)
 ```
 
-Tras ver los resultados nos decantamos por la cuarta opción (Age4), ya que la distribución se parece mucho más
-a la original.
+Tras ver los resultados nos decantamos por la cuarta opción (Age4), ya que la distribución se parece mucho más a la original.
 Asignamos y limpiamos el dataset:
 
 ```{r message= FALSE, warning=FALSE}
@@ -463,8 +465,7 @@ Recordamos los valores con ceros del dataset
 df_status(data)
 ```
 
-
-Tenemos un alto número de ceros en **SibSp** y **Parch**, pero son valores válidos para estas variables, pues cuentan el número de acompañantes (familiares) del pasajero. Hay también un porcentaje  pequeño de ceros en **Fare** (tarifa), esto podría tener algún sentido (por ejemplo, tickets sin coste por ser un premio o un regalo) por lo que, en principio, vamos a dejar presentes estos ceros.
+Tenemos un alto número de ceros en **SibSp** y **Parch**, pero son valores válidos dentro del rango para estas variables, pues cuentan el número de acompañantes (familiares) del pasajero. Hay también un porcentaje pequeño de ceros en **Fare** (tarifa), esto podría tener algún sentido (por ejemplo, tickets sin coste por ser un premio o un regalo) por lo que, en principio, vamos a dejar presentes estos ceros.
 
 
 ### Conclusión limpieza nulos y ceros
@@ -475,8 +476,7 @@ Viendo nuevamente los resultados con **summary**, hemos eliminado los nulos y te
 summary(data)
 ```
 
-Y con “df_status” vemos también como nos han quedado los datos después de eliminar variables, y de imputar valores en las variables que le faltaban algunos valores. El dataset queda libre de nulos, y con los ceros que hemos
-aceptado que tiene que mantener y que tienen sentido.
+Y con “df_status” vemos también como nos han quedado los datos después de eliminar variables, y de imputar valores en las variables a los que le faltaban algunos valores. El dataset queda libre de nulos, y con los ceros que hemos aceptado que tiene que mantener y que tienen sentido.
 
 ```{r message= FALSE, warning=FALSE}
 df_status(data)
@@ -484,11 +484,11 @@ df_status(data)
 
 ## Identificación y tratamiento de valores extremos.
 
-Se considera un valor extremo, outlier, a un valor fuera de rango. Son valores que se salen de la escala esperada visualizando el resto de las observaciones. En la actualidad, el criterio más habitual es considerar un valor extremo
-a aquel que se encuentra alejado de la media unas tres veces la desviación típica.
-En nuestro caso vamos a comenzar por separar aquellas variables que son numéricas y verlas en un gráfico bloxplot:
+Se considera un valor extremo, outlier, a un valor fuera de rango. Son valores que se salen de la escala esperada visualizando el resto de las observaciones. En la actualidad, el criterio más habitual es considerar un valor extremo a aquel que se encuentra alejado de la media unas tres veces la desviación típica.
 
-## Gráfico boxplot variables numéricas
+Este análisis solo tiene sentido realizarlo sobre las variables numéricas por lo que vamos a comenzar por separar aquellas variables que son numéricas y verlas en un gráfico bloxplot.
+
+### Gráfico boxplot variables numéricas
  
 ```{r message= FALSE, warning=FALSE}
 lista<-sapply(data, is.numeric) 
@@ -519,7 +519,7 @@ for (i in 1:ncol(data_out) - 1){
 table(data_out$outlier)
 ```
 
-Con este criterio tenemos identificados 20 posibles outliers, observando mas detenidamente los valores que nos indica boxplot.stats y teniend en cuenta que el máximo es 512, no parecen exagerados:
+Con este criterio tenemos identificados 20 posibles *outliers*, observando mas detenidamente los valores que nos indica boxplot.stats y teniendo en cuenta que el máximo es 512, no parecen exagerados:
 
 ```{r message= FALSE, warning=FALSE}
 boxplot.stats(data$Fare)$out
@@ -527,9 +527,9 @@ boxplot.stats(data$Fare)$out
 
 Los valores, además, están bien distribuidos, los más altos en las clases altas.
 
-Por todo esto, decidimos no realizar ninguna acción con estos outliers ya que incluso ueden estar aportando información importante:
+Por todo esto, decidimos no realizar ninguna acción con estos *outliers* ya que incluso pueden estar aportando información importante:
 
-## Gráfico outlier Fare
+**Gráfico outlier Fare**
 
 ```{r message= FALSE, warning=FALSE}
 boxplot(data$Fare~data$Pclass,xlab="Pclass",ylab="Fare",
@@ -562,7 +562,7 @@ boxplot.stats(data$Price)$out
 
 Y al igual que con **Fare**, los valores más altos en las clases altas:
 
-##Gráfico boxplot Fare
+**Gráfico boxplot Price**
 
 ```{r message= FALSE, warning=FALSE}
 boxplot(data$Price~data$Pclass,xlab="Pclass",ylab="Price",col=c("blue","yellow","red"))
@@ -602,15 +602,12 @@ Donde vemos que podríamos tener 2 valores outliers, pero observando los valores
 
 ## Selección de los grupos de datos que se quieren analizar/comparar (planificación de los análisis a aplicar).
 
-
-Del dataset completo nos interesa poder realizar diferentes análisis en función de diferentes subconjuntos de datos, como puede ser el género, la clase en la que viajan los pasajeros, el puerto en el que han embarcado, incluso
-se pueden definir grupos por edad, y ver realmente si es cierto y se cumplió aquello que dicen en las películas “las mujeres y los niños primero” y poder comprobar si realmente los niños tienen mejor índice de supervivencia que los
-adultos.
-Podemos definir diferentes agrupaciones que podemos usar más adelante para estudiar los casos por grupos
+Del dataset completo nos interesa poder realizar diferentes análisis en función de diferentes subconjuntos de datos, como puede ser el género, la clase en la que viajan los pasajeros, el puerto en el que han embarcado, incluso se pueden definir grupos por edad, y ver realmente si es cierto y se cumplió aquello que dicen en las películas “las mujeres y los niños primero” y poder comprobar si efectivamente, los niños tienen mejor índice de supervivencia que los adultos.
+Podemos definir diferentes agrupaciones que usaremos más adelante para estudiar los casos por grupos.
 
 ### Niños
 
-Vamos a definir una variable Child para aquellso registros en los que la edad sea menor que 8
+Vamos a definir una variable Child para aquellos registros en los que la edad sea menor que 8
 
 ```{r message= FALSE, warning=FALSE}
 edad_corte = 8
@@ -627,7 +624,6 @@ Agrupamos por el género, creando una variable para cada uno de los géneros
 Mujeres <- data[which(data$Sex == 'female'),]
 Hombres <- data[which(data$Sex == 'male'),]
 ```
-
 
 ### Lugar de embarque
 
@@ -651,7 +647,7 @@ ThirdClass <- data[which(data$Pclass == 3),]
 
 ### Edades
 
-Vamos a discretizar los valores por grupos de edades, añadiendo una columan al dataset (AgeInterval)
+Vamos a discretizar los valores por grupos de edades, añadiendo una columna al dataset (AgeInterval)
 
 ```{r message= FALSE, warning=FALSE}
 data["AgeInterval"] <- cut(data$Age, breaks = c(0,13,18,40,55, 100), labels = c("0-12", "13-17", "18-39","40-54", "55-100"))
@@ -662,7 +658,6 @@ table(data$AgeInterval)
 plot(data$AgeInterval)
 ```
 
-
 ## Comprobación de la normalidad y homogeneidad de la varianza.
 
 ### Normalidad
@@ -670,9 +665,7 @@ plot(data$AgeInterval)
 Vamos a verificar si las variables cuantitativas continuas siguen una distribución normal. Algunos test estadísticos requieren que las variables que van a ser analizadas sigan una distribución normal, por tanto tenemos que conocer cuáles son las distribuciones de nuestras variables continuas.
 Las únicas variables cuantitativas continuas que tenemos en el dataset original son las variables **Age** y **Fare**. Además, hemos generado una nueva variable a partir de **Fare**, que hemos llamado **Price**, y que, por tanto también es una variable cualitativa continua. 
 
-En general, la prueba de *Shapiro-Wilk* se considera una prueba muy potente para contrastar la normalidad de distribuciones. Se asume como hipótesis nula que la población sigue una distribución normal. Si el p-valor obtenido es inferior al nivel de significancia (normalmente α = 0,05) entonces se rechaza la hipótesis nula (y por tanto se concluye que los datos no vienen de una distribución normal). En cambio, si el p-valor es superior al nivel de significancia,
-entonces no se puede rechazar la hipótesis nula y se asume que los datos
-siguen una distribución normal.
+En general, la prueba de *Shapiro-Wilk* se considera una prueba muy potente para contrastar la normalidad de distribuciones. Se asume como hipótesis nula que la población sigue una distribución normal. Si el p-valor obtenido es inferior al nivel de significancia (normalmente α = 0,05) entonces se rechaza la hipótesis nula (y por tanto se concluye que los datos no vienen de una distribución normal). En cambio, si el p-valor es superior al nivel de significancia, entonces no se puede rechazar la hipótesis nula y se asume que los datos siguen una distribución normal.
 Para poder tener más seguridad, vamos a aplicar otros dos métodos, la prueba de *Anderson-Darling* y la prueba de *Kolmogorov-Smirnov* (conocida también como K-S)
 
 Creamos un data frame para resumir los tests:
@@ -685,6 +678,7 @@ tabla.normalidad <- data.frame('variable' = character(),
                                stringsAsFactors = FALSE) 
 str(tabla.normalidad)
 ```
+
 Ahora recorremos todas las variables continuas aplicando los tres tests y añadiéndolos al dataframe:
 
 ```{r message= FALSE, warning=FALSE}
@@ -708,7 +702,7 @@ for (i in 1:length(var.continuas)){
 knitr::kable(tabla.normalidad)
 ```
 
-Con estos resultados se puede decir que ninguna de las 3 variables sigue una distribución normal, en todos los casos el p-value ha sido inferior a 0.05 y
+Con estos resultados se puede decir que ninguna de las 3 variables sigue una distribución normal, en todos los casos el *p-value* ha sido inferior a 0.05 y
 por tanto se han rechazado la hipótesis nula (que la variable sigue una distribución normal).
 
 No obstante, vamos a revisar gráficamente la distribución de cada una de las variables usando su histograma, curva de densidad y gráficas Q-Q
@@ -728,17 +722,18 @@ for (i in 1:length(var.continuas)) {
 }
 ```
 
+TODO: ¿Conclusión del análisis gráfico?
+
 ### Homocedasticidad (comprobación de varianzas)
 
 Cuando comparamos varianzas lo que estamos comprobando es que las varianzas entre los grupos a comparar son iguales.
-Si los datos siguen una distribución normal, podemos usar el test de Levene, en caso contrario podemos usar por ejemplo el test de Fligner-Killeen, que es la alternativa no paramétrica que se utiliza cuando los datos no siguen una distribución normal ( o cuando hay problemas con outliers no resueltos)
+Si los datos siguen una distribución normal, podemos usar el test de *Levene*, en caso contrario podemos usar por ejemplo el test de *Fligner-Killeen*, que es la alternativa no paramétrica que se utiliza cuando los datos no siguen una distribución normal ( o cuando hay problemas con outliers no resueltos)
 
-En ambos test (Levene y Fligner-Killeen), la hipótesis nula asume la igualdad de varianzas en los diferentes grupos de datos, con lo que si el p-valor obtenido es inferior al nivel de significancia (generalmente alpha = 0,05) se rechaza la hipótesis nula y se concluye que hay heterocedasticidad.
+En ambos test (*Levene* y *Fligner-Killeen*), la hipótesis nula asume la igualdad de varianzas en los diferentes grupos de datos, con lo que si el p-value obtenido es inferior al nivel de significancia (generalmente alpha = 0,05) se rechaza la hipótesis nula y se concluye que hay heterocedasticidad.
 
 #### Age
 
-La variable Age está próxima a una distribución normal por lo cual podemos utilizar el test de Levene para la comprobación de varianzas.
-
+La variable **Age** está próxima a una distribución normal por lo cual podemos utilizar el test de *Levene* para la comprobación de varianzas.
 
 ##### Age con Survived
 
@@ -747,10 +742,9 @@ Primero analizamos si las varianzas son iguales cuando comprobamos **Age** y el 
 ```{r message= FALSE, warning=FALSE}
 leveneTest(data = data, Age ~ Survived, center = mean)
 ```
-En este caso el p-value es superior a 0.05 y por tanto asumimos que hay homogeneidad de varianzas entre los grupos
+En este caso el p-value es superior a 0.05 y por tanto asumimos que hay **homogeneidad de varianzas** entre los grupos
 
-
-## Representación muestras forma gráfica
+**Representación muestras forma gráfica**
 
 ```{r message= FALSE, warning=FALSE}
 
@@ -765,36 +759,52 @@ fligner.test(Age ~ Survived, data=data)
 
 ##### Age con Embarked
 
-Ahora Comprobamos también cómo se comportan las varianzas cuando se trata de la variable edad “Age” con “Embarked”.
+Ahora Comprobamos también cómo se comportan las varianzas cuando se trata de la variable edad **Age** con **Embarked**.
 
 ```{r message= FALSE, warning=FALSE}
 leveneTest(data = data, Age ~ Embarked, center = mean)
 ```
-En este caso hay omogeneidad de varianzas de Age en los grupos que define la variable Embarked
+
+En este caso hay **homogeneidad de varianzas** de **Age** en los grupos que define la variable **Embarked**
 
 ##### Age con Pclass
-Ahora Comprobamos también cómo se comportan las varianzas cuando se trata de la variable edad “Age” con “Pclass”.
-En este caso vamos a aplicar tanto el test de Levene como el de Fligner-Killeen:
-
+Ahora Comprobamos también cómo se comportan las varianzas cuando se trata de la variable edad **Age** con **Pclass**.
+En este caso vamos a aplicar tanto el test de *Levene* como el de *Fligner-Killeen*:
 
 ```{r message= FALSE, warning=FALSE}
 leveneTest(data = data, Age ~ Pclass, center = mean)
 fligner.test(Age ~ Pclass, data = data)
 ```
-En los dos tests (parmétrico y no paramétrico), se rechaza la hipótesis nula, con lo que hay heterogeneidad d varianzas entre las muestras de **Age**  cuando se agrupan por **Pclass**
+
+En los dos tests (paramétrico y no paramétrico), se rechaza la hipótesis nula, con lo que hay **heterogeneidad de varianzas** entre las muestras de **Age**  cuando se agrupan por **Pclass**
 
 ##### Age con Sex
+
+Para concluir con el atributo **Age** realizamos tambien el análisis con respecto a **Sex**.
+De nuevo aplicamos *Levene* y *Fligner-Killen*
 
 ```{r message= FALSE, warning=FALSE}
 leveneTest(data = data, Age ~ Sex, center = mean)
 fligner.test(Age ~ Sex, data = data)
 ```
 
-En los dos tests el p-value es claramente superior a 0.05 por lo que podemos afirmar que sí hay homogeneidad de varianzas para *Age* cuando está agrupado por *Sex*
+En los dos tests el p-value es claramente superior a 0.05 por lo que podemos afirmar que sí hay **homogeneidad de varianzas** para *Age* cuando está agrupado por *Sex*
+
+##### Resumen Age
+
+Resumimos en una tabla los resultados de homogeneidad de la varianza de Age con respecto a los distintos atributos:
+
+| Age con respecto a |  resultado     |
+| ------------------ | -------------- |
+| Survived           | homogeneidad   |
+| Embarked           | homogeneidad   |
+| Pclass             | heterogeneidad |
+| Sex                | homogeneidad   |
 
 #### Fare
 
-Hacemos el mismo estudio con la variable Fare pero usando Fligner
+Hacemos el mismo estudio con la variable **Fare** pero ahora usaremos *Fligner*.
+Mostramos los test con **Sex**, **Survived**, **Embarked**, **Pclass**
 
 ```{r message= FALSE, warning=FALSE}
 fligner.test(Fare ~ Sex, data = data)
@@ -803,8 +813,7 @@ fligner.test(Fare ~ Embarked, data = data)
 fligner.test(Fare ~ Pclass, data = data)
 ```
 
-Comprobamos la variable “Fare”, los resultados indican que hay heterogeneidad de varianza de esas variables respecto a los grupos con los que se ha aplicado el test no paramétrico.
-
+Comprobamos la variable **Fare**, los resultados indican que hay **heterogeneidad de varianza** de esas variables respecto a los grupos con los que se ha aplicado el test no paramétrico.
 
 ## Aplicación de pruebas estadísticas para comparar los grupos de datos. 
 
@@ -813,12 +822,14 @@ Comprobamos la variable “Fare”, los resultados indican que hay heterogeneida
 Primero vamos a realizar diversos análisis de relaciones variables (principalmente pares de variables), para aclarar la dependencia entre ellas y como pueden afectar a las posibilidades de supervivencia
 
 #### Age y Sex
-Primero vamos a analizar si hay diferencias significativas entre la media de edad de mujeres y de hombres.
-Para hacerlo aplicamos el test paramétrico t-test de Student, que requiere que las muestras a comparar sigan una distribución normal.
-Ya vimos que **Age** no sigue exactamente una distribución normal, pero si consideramos el teorema central del límite con una muestra suficientemente grande (mayor de 30) se puede asumir que la variable sigue una distribución normal. Si la variable no siguiese una distribución normal habríamos aplicado una prueba no paramétrica como por ejemplo el test de Mann-Whitney.
 
-Para ejecutar la prueba t de Student, disponemos en R del comando "t.test". Este mismo comando nos permite realizar el test de Welch cuando las varianzas entre las muestras son diferentes. 
-Comprobemos que la variable **Age** sigue una distribución normal primero aplicando el F-test mediante el comando var.test
+Primero vamos a analizar si hay diferencias significativas entre la media de edad de mujeres y de hombres.
+Para hacerlo aplicamos el test paramétrico *t-test de Student*, que requiere que las muestras a comparar sigan una distribución normal.
+
+Ya vimos que **Age** no sigue exactamente una distribución normal, pero si consideramos el teorema central del límite con una muestra suficientemente grande (mayor de 30) se puede asumir que la variable sigue una distribución normal. Si la variable no siguiese una distribución normal podríamos aplicar una prueba no paramétrica como por ejemplo el test de *Mann-Whitney*.
+
+Para ejecutar la prueba *t de Student*, disponemos en R del comando "t.test". Este mismo comando nos permite realizar el test de *Welch* cuando las varianzas entre las muestras son diferentes. 
+Comprobemos que la variable **Age** sigue una distribución normal primero aplicando el *F-test* mediante el comando var.test
 
 ```{r message= FALSE, warning=FALSE}
 var.test(Mujeres$Age, Hombres$Age)
@@ -826,7 +837,7 @@ var.test(Mujeres$Age, Hombres$Age)
 
 El resultado nos indica que las varianzas de edad en los grupos de mujeres y hombres son iguales.
 
-Aplicamos ahora un test para comparar las medias de los 2 grupos, la hipótesis nula será que no hay diferencias significativas entre la media de edades para hombres y mujeres. Podemos usar el t-Test indicando que las varianzas de los grupos son iguales (por el resultado anterior).
+Aplicamos ahora un test para comparar las medias de los 2 grupos, la hipótesis nula será que no hay diferencias significativas entre la media de edades para hombres y mujeres. Podemos usar el *t-Test* indicando que las varianzas de los grupos son iguales (por el resultado anterior).
 
 ```{r message= FALSE, warning=FALSE}
 t.test(Mujeres$Age, Hombres$Age, var.equal = TRUE)
@@ -834,7 +845,7 @@ t.test(Mujeres$Age, Hombres$Age, var.equal = TRUE)
 
 El valor de p-values es inferior a 0.05, por lo que rechazamos la hipótesis nula. Es decir, **la media de edad por género tiene una diferencia significativa**.
 
-Esstablecemos una nueva hipótesis alternativa: que la media de edad de las mujeres es menor que la de los hombres. Por lo tanto, la hipótesis nula corresponde a que la edad de las mujeres es mayor o igual a la de los hombres:
+Establecemos una nueva hipótesis alternativa: que la media de edad de las mujeres es menor que la de los hombres. Por lo tanto, la hipótesis nula corresponde a que la edad de las mujeres es mayor o igual a la de los hombres:
 
 ```{r message= FALSE, warning=FALSE}
 t.test(Mujeres$Age, Hombres$Age, alternative = "less", var.equal = TRUE)
@@ -852,9 +863,8 @@ ggplot(data,aes(x=Sex,fill=Survived))+geom_bar()
 Parece indicar que ser mujer tenía mas posibilidades de supervivencia que siendo hombre.
 Vamos a confirmar esto realizando algunos contrastes de hipótesis.
 
-
 Primero, vamos a comprobar la relación entre la supervivencia y el género, analizando si el género fue un factor importante a la hora de la supervivencia, o dicho de otro modo, si dependiendo de si se era mujer u hombre las posibilidades de supervivencia cambiaban significativamente.
-Para hacerlo aplicamos el test exacto de Fisher que analiza tablas de contigencia. En este caso la hipótesis nula es que la proporción de mujeres que mueren coincide con la proporción de hombre que mueren en el accidente del Titanic.
+Para hacerlo aplicamos el *test exacto de Fisher* que analiza tablas de contingencia. En este caso la hipótesis nula es que la proporción de mujeres que mueren coincide con la proporción de hombre que mueren en el accidente del Titanic.
 
 ```{r message= FALSE, warning=FALSE}
 fisher.test(table(data$Sex, data$Survived))
@@ -862,13 +872,13 @@ fisher.test(table(data$Sex, data$Survived))
 
 El resultado no deja lugar a dudas con un p-valor < 0.05 rechazamos la hipótesis nula, es decir: **hay diferente proporción de supervivencia entre hombres y mujeres.**
 
-Una vez confirmado que el género si que es importante a ala hora de las probabilidades de supervivencia, vamos a ver quien tiene mas probabilidades de supervivencia, si las mujeres o los hombres. Para ello añadimos una condición a la hipótesis alternativa, usamos “less” para indicar (en la hipótesis nula) que el primer grupo (en este caso las mujeres ya que en orden alfabético es female y male) tiene menor proporción (probabilidad) si se rechaza la hipótesis nula. Es decir, la hipótesis nula dice que “la proporción de mujeres que mueren es mayor que la de los hombres”.
+Una vez confirmado que el género si que es importante a ala hora de las probabilidades de supervivencia, vamos a ver quien tiene más probabilidades de supervivencia, si las mujeres o los hombres. Para ello añadimos una condición a la hipótesis alternativa, usamos “less” para indicar (en la hipótesis nula) que el primer grupo (en este caso las mujeres ya que en orden alfabético es female y male) tiene menor proporción (probabilidad) si se rechaza la hipótesis nula. Es decir, la hipótesis nula dice que “la proporción de mujeres que mueren es mayor que la de los hombres”.
 
 ```{r message= FALSE, warning=FALSE}
 fisher.test(table(data$Sex, data$Survived), alternative = 'less')
 ```
 
-De nuevo rechazamos la hiótesis nula (p-value inferior a 0.05) con lo que se cumple la hipótesis alternativa: **la proporción de mujeres que mueren es inferior a la de los hombres**.
+De nuevo rechazamos la hipótesis nula (p-value inferior a 0.05) con lo que se cumple la hipótesis alternativa: **la proporción de mujeres que mueren es inferior a la de los hombres**.
 
 Si tenemos en cuenta que la tabla de contingencia que estamos evaluando es la siguiente:
 
@@ -904,14 +914,14 @@ ggplot(data,aes(x=Pclass,fill=Survived))+geom_bar()
 
 En el gráfico se aprecia claramente que el porcentaje de supervivencia por clases disminuye desde la primera hasta la tercera clase.
 
-Para realizar el análisis numéricamente, al ser dos variables categóricas vamos a aplicar por ejemplo el test Chi-Cuadrado. Aquí la hipótesis nula nos dice que las variables son independientes. Vamos a comprobarlo:
+Para realizar el análisis numéricamente, al ser dos variables categóricas vamos a aplicar por ejemplo el test *Chi-Cuadrado*. Aquí la hipótesis nula nos dice que las variables son independientes. Vamos a comprobarlo:
 
 ```{r message= FALSE, warning=FALSE}
 test_chisq <- chisq.test(data$Pclass, data$Survived)
 test_chisq
 ```
 
-El p-value obtenido es inferior a 0.05, es decir, rechazamos la hipótesis nula, y por tanto afirmamos que las variables no son independientes. Esto quiere decir que el grado de supervivencia era distinto dependiendo de la clase en la que estuvieses embarcado. Confirma el análisis visual, que nos aporta también que las clases con mas superviencia eran las mejores.
+El p-value obtenido es inferior a 0.05, es decir, rechazamos la hipótesis nula, y por tanto afirmamos que las variables no son independientes. Esto quiere decir que **el grado de supervivencia era distinto dependiendo de la clase en la que estuvieses embarcado**. Confirma el análisis visual, que nos aporta también que las clases con mas superviencia eran las mejores.
 
 También se puede observar el valor de df que son los grados de libertad, que lo podemos obtener a través de la tabla de contingencias y el estadístico de contraste. Si el estadístico de contraste obtenido supera el valor crítico entonces se rechaza la hipótesis nula.
 
@@ -929,7 +939,7 @@ Realizamos el mismo análisis
 ggplot(data,aes(x=Embarked,fill=Survived))+geom_bar()
 ```
 
-El gráfico parece indicar que los embarcados en Southampton tenían menos posibilidades de sobrevivir. Puede ser que esté relacionado con la Pclass de cada lugar de embarque:
+El gráfico parece indicar que los embarcados en Southampton tenían menos posibilidades de sobrevivir. Puede ser que esté relacionado con la *Pclass* de cada lugar de embarque:
 
 ```{r message= FALSE, warning=FALSE}
 ggplot(data,aes(x=Pclass,fill=Survived))+geom_bar()+facet_wrap(~Embarked)
@@ -938,7 +948,7 @@ Este nos confirma los embarcados en S eran mayoritariamente de clase 3 por lo qu
 
 Vemos ahora el análisis con contrastes de hipótesis.
 
-Primero analizamos si hay relación entre las variables **Embarked** y **Survived** usando de nuevo la Chi-Squared
+Primero analizamos si hay relación entre las variables **Embarked** y **Survived** usando de nuevo la *Chi-Squared*
 
 ```{r message= FALSE, warning=FALSE}
 test_chisq <- chisq.test(data$Embarked, data$Survived)
@@ -961,18 +971,19 @@ ggplot(data,aes(x=Child,fill=Survived))+geom_bar(position ='fill')
 ```
 Parece que si que hay mas esperanza de supervivencia en ese caso.
 
-Aplicamos el test de Fisher para comprobar si tienen las mismas probabilidades de supervivencia que el resto de pasajeros. 
+Aplicamos el *test de Fisher* para comprobar si tienen las mismas probabilidades de supervivencia que el resto de pasajeros. 
 
 ```{r message= FALSE, warning=FALSE}
 fisher.test(table(data$Child, data$Survived))
 ```
 
-Se rechaza la hipótesis nula, es decir que las propociones no coinciden. Analizamos ahora si las probabilidades de supervivencia son mayores o menores. Para ello analizamos si la proporcion de no-niños que no sobreviven es menor a la proporoción de niños que no sobreviven:
+Se rechaza la hipótesis nula, es decir que las proporciones no coinciden. 
+Analizamos ahora si las probabilidades de supervivencia son mayores o menores. Para ello analizamos si la proporción de no-niños que no sobreviven es menor a la proporoción de niños que no sobreviven:
 
 ```{r message= FALSE, warning=FALSE}
 fisher.test(table(data$Child, data$Survived), alternative = 'greater')
 ```
-Se rechaza la hipótesis nula, y se acepta la alternativa, es decir que la probabilidad de muerte de los no-niños es mayor que la de los niños.
+Se rechaza la hipótesis nula, y se acepta la alternativa, es decir que la **probabilidad de muerte de los no-niños es mayor que la de los niños**.
 
 ```{r message= FALSE, warning=FALSE}
 tab.contigencia = table(data$Child, data$Survived)
@@ -991,7 +1002,7 @@ Aplicamos el test t-Test
 t.test(data$Age[which(data$Survived==0)], data$Age[which(data$Survived == 1)])
 ```
 
-Se observa que el p-valor es inferior a 0.05, con lo que rechazamos la hipótesis nula (que las medias de edad son coincidentes para fallecidos y supervivientes), pero como ya sabíamos, la distribución de Age no sigue una normal, por lo que vamos a aplicar el test no paramétrico U de Mann-Whitney
+Se observa que el p-valor es inferior a 0.05, con lo que rechazamos la hipótesis nula (que las medias de edad son coincidentes para fallecidos y supervivientes), pero como ya sabíamos, la distribución de **Age** no sigue exactamente una normal, por lo que vamos a aplicar el *test no paramétrico U de Mann-Whitney*
 
 ```{r message= FALSE, warning=FALSE}
 wilcox.test(x = data$Age[which(data$Survived==0)],
@@ -1000,7 +1011,7 @@ wilcox.test(x = data$Age[which(data$Survived==0)],
             )
 ```
 
-La prueba no-paramétrica nos devuelve un p-value por encima de 0.05 y por tanto no rechazamos la hipótesis nula, con lo que podemos decir que la media de edad es coincidente entre los muertos y los supervivientes del accidente del Titanic.
+La prueba no-paramétrica nos devuelve un p-value por encima de 0.05 y por tanto no rechazamos la hipótesis nula, con lo que podemos decir que **la media de edad es coincidente entre los muertos y los supervivientes del accidente del Titanic**.
 
 Gráficamente podemos comprobarlo mediante un Boxplot
 
@@ -1025,7 +1036,7 @@ resumen_anova <- summary(modelo_anova)
 resumen_anova
 ```
 
-Observamos dos filas, una que pone “Embarked” y otra que pone “Residuals”. La primera fila corresponde a todo lo relativo a la varianza explicada (la de lavariable independiente “Embarked”) y la segunda fila relativo a la varianza no explicada o residual.
+Observamos dos filas, una que pone “Embarked” y otra que pone “Residuals”. La primera fila corresponde a todo lo relativo a la varianza explicada (la de la variable independiente **Embarked**) y la segunda fila relativo a la varianza no explicada o residual.
 
 **Explicación de los resultados del test Anova:**
 
@@ -1049,17 +1060,17 @@ Revisamos los distintos gráficos que nos proporciona anova
 plot(modelo_anova, 1)
 ```
 
-Esta gráfica nos muestra si los residuos tienen patrones no lineales. Puede existir una relación no lineal entre las variables explicativas y la variable explicada, y ese patrón podría verse en esta gráfica si el modelo no captura esa relación no
-lineal. Si los residuos están igualmente distribuidos alrededor de una línea horizontal sin patrones diferentes, es una buena señal de que no hay relaciones no lineales.
+Esta gráfica nos muestra si los residuos tienen patrones no lineales. Puede existir una relación no lineal entre las variables explicativas y la variable explicada, y ese patrón podría verse en esta gráfica si el modelo no captura esa relación no lineal. Si los residuos están igualmente distribuidos alrededor de una línea horizontal sin patrones diferentes, es una buena señal de que no hay relaciones no lineales.
 
 En nuestro caso concreto, se ve una línea casi horizontal (hay una mini curva) y los residuos se distribuyen alrededor de dicha línea. Podemos decir que no hay indicios de relaciones no lineales.
 
 - Gráfico Normal Q-Q
+
 ```{r message= FALSE, warning=FALSE}
 plot(modelo_anova, 2)
 ```
 
-Si no nos ponemos muy estrictos en la exigencia, con el gráfico Normal Q-Q podemos ver que la variable dependiente sigue una distribución aproximadamente normal. La mayoría de los puntos se encuentran alineados en la línea de puntos y solamente es en los extremos donde esa situación no se cumple.
+Si no nos ponemos muy estrictos en la exigencia, con el gráfico *Normal Q-Q* podemos ver que la variable dependiente sigue una distribución aproximadamente normal. La mayoría de los puntos se encuentran alineados en la línea de puntos y solamente es en los extremos donde esa situación no se cumple.
 
 - Gráfica Scale-Location:
 
@@ -1067,7 +1078,7 @@ Si no nos ponemos muy estrictos en la exigencia, con el gráfico Normal Q-Q pode
 plot(modelo_anova, 3)
 ```
 
-La gráfica Scale-Location también es conocida con el nombre de gráfica Spread-Location. Aquí vemos si los residuos se reparten de forma equitativa.En nuestro ejemplo, vemos casi una recta horizontal y los puntos se distribuyen de forma muy similar a los lados de la línea y en los extremos también parece un gráfico simétrico (tanto en horizontal como en vertical). Es decir que el gráfico nos está indicando que se cumple la homocedasticidad en nuestro modelo.
+La gráfica *Scale-Location* también es conocida con el nombre de gráfica *Spread-Location*. Aquí vemos si los residuos se reparten de forma equitativa.En nuestro ejemplo, vemos casi una recta horizontal y los puntos se distribuyen de forma muy similar a los lados de la línea y en los extremos también parece un gráfico simétrico (tanto en horizontal como en vertical). Es decir que el gráfico nos está indicando que se cumple la homocedasticidad en nuestro modelo.
 
 - Gráfica Residuals vs Leverage
 
@@ -1087,8 +1098,8 @@ Otra forma de mostrar la distancia de Cook es usando el gráfico que proporciona
 plot(modelo_anova, 4)
 ```
 
-Después de este análisis y dando por aceptadas las condiciones del cumplimiento de Anova, podemos afirmar que las medias de edad en los diferentes puertos de Embarke es coincidente.
-Y de hecho, si vemos el Boxplot de la variable “Age” en función de la variable “Embarked”:
+Después de este análisis y dando por aceptadas las condiciones del cumplimiento de Anova, podemos afirmar que **las medias de edad en los diferentes puertos de Embarke es coincidente**.
+Y de hecho, si vemos el Boxplot de la variable **Age** en función de la variable **Embarked**:
 
 ```{r message= FALSE, warning=FALSE}
 ggplot(data, aes(x=Embarked, y=Age)) +
@@ -1098,7 +1109,7 @@ ggplot(data, aes(x=Embarked, y=Age)) +
 
 #### Price y Pclass
 
-Intentamos realizar Anova con etas dos variables, usando como hipótesis nula que el precio medio pagado es igual para cada una de las 3 clases
+Intentamos realizar Anova con estas dos variables, usando como hipótesis nula que el precio medio pagado es igual para cada una de las 3 clases
 
 ```{r message= FALSE, warning=FALSE}
 modelo_anova <- aov(formula = Price ~ Pclass, data =data )
@@ -1111,15 +1122,16 @@ Si mostramos los gráficos:
 plot(modelo_anova)
 ```
 
-Observamos que no se cumplen las condicies para aplicar Anova y el test no tienve valor.
-Vamos a intentar usar un test no paramétrico, Kruskal Wallis
+Observamos que no se cumplen las condiciones para aplicar Anova y el test no tiene valor.
+Vamos a intentar usar un test no paramétrico, *Kruskal Wallis*
 
 ```{r message= FALSE, warning=FALSE}
 modelo_kruskal <- kruskal.test(formula = Price ~ Pclass, data =data )
 modelo_kruskal
 ```
 
-El resultado de este test arroja un p-value inferior a 0.05 y por tanto rechazamos la hipótesis nula.
+El resultado de este test arroja un p-value inferior a 0.05 y por tanto rechazamos la hipótesis nula. Es decir **el precio medio pagado NO es igual para cada una de las 3 clases**
+lo cual era el resultado esperado.
 
 Lo podemos comprobar también visualmente con el boxplot relativo a ello:
 
@@ -1131,8 +1143,7 @@ ggplot(data, aes(x=Pclass, y=Price)) +
 
 ### Modelos
 
-TODO############ explicación mejor de los modelos
-Vamos a aplicar diversos modelos
+Vamos a aplicar diversos modelos predictivos de la variable Survived.
 
 Vamos a utilizar como variables explicativas las variables que traía por defecto el conjunto de datos original (menos las que hemos eliminado en el proceso de transformación y limpieza de datos ya comentado).
 
@@ -1147,9 +1158,10 @@ data_test = subset(data, split == FALSE)
 
 ```
 
+
 #### Modelo de regresión logística
 
-Un modelo de regresión logística es un tipo de análisis de regresión que se utiliza para predecir el resultado de una variable categórica, en función de las variables independientes. En nuestro caso, la variable objetivo “Survived” es una variable categórica binaria, es decir que tomar valor de 0 o 1 (verdadero o falso). La variable toma el valor 1 cuando el pasajero ha sobrevivido al accidente, y 0 en caso contrario.
+Un modelo de regresión logística es un tipo de análisis de regresión que se utiliza para predecir el resultado de una variable categórica, en función de las variables independientes. En nuestro caso, la variable objetivo **Survived** es una variable categórica binaria, es decir que tomar valor de 0 o 1 (verdadero o falso). La variable toma el valor 1 cuando el pasajero ha sobrevivido al accidente, y 0 en caso contrario.
 
 - Primer modelo glm
 
@@ -1160,14 +1172,14 @@ modelo_glm1 <- glm(formula=Survived~ Pclass+SibSp+Parch+Sex+Age+Fare+Embarked, d
 summary(modelo_glm1)
 ```
 
-Se puede observar en este modelo que tanto las variables “Fare” como “Parch” no son significativas, es decir, no están aportando nada a la hora de predecir la variable “Survived”.
-Además, podemos comprobar el “sentido” de la significación. Por ejemplo, vemos como significativa la variable dummy. Con las variables categóricas se crean automáticamente tantas variables dummy como niveles – 1. En el caso de la variable Sex, al tener 2 valores ha creado la variable “Sexmale”, es decir la parte correspondiente a hombres, mientras que la parte de mujeres forma parte del Intercept del modelo. Concretamente vemos que “Sexmale” es una variable significativa, pero con valor negativo (de las más negativas junto con “Pclass3”). Eso significa que esas variables son una influencia “negativa” de cara a la supervivencia. Es decir, esas variables contribuyen negativamente a la supervivencia, se puede ver por ejemplo que Pclass3 afecta más negativamente que Pclass2.
+Se puede observar en este modelo que tanto las variables **Fare** como **Parch** no son significativas, es decir, no están aportando nada a la hora de predecir la variable **Survived**.
+
+Además, podemos comprobar el “sentido” de la significación. Por ejemplo, vemos como significativa la variable dummy. Con las variables categóricas se crean automáticamente tantas variables dummy como niveles – 1. En el caso de la variable Sex, al tener 2 valores ha creado la variable **Sexmale**, es decir la parte correspondiente a hombres, mientras que la parte de mujeres forma parte del Intercept del modelo. Concretamente vemos que **Sexmale** es una variable significativa, pero con valor negativo (de las más negativas junto con **Pclass3**). Eso significa que esas variables son una influencia “negativa” de cara a la supervivencia. Es decir, esas variables contribuyen negativamente a la supervivencia, se puede ver por ejemplo que **Pclass3** afecta más negativamente que **Pclass2**.
 
 Ahora usamos el conjunto de datos de test para validar nuestro modelo
 
-
 ```{r message= FALSE, warning=FALSE}
-predict_glm1 <- predict.glm(object=modelo_glm1, newdata=data_test, type = "response")
+predict_glm1 <- predict(object=modelo_glm1, newdata=data_test, type = "response")
 r1 = pROC::roc(response=data_test$Survived, predictor = predict_glm1)
 threshold_r1 <- coords(r1, "best", ret = "threshold")
 predict_glm1 <- ifelse(predict_glm1 < threshold_r1, 0, 1)
@@ -1176,7 +1188,6 @@ mat.confusion_glm1
 pct.correcto_glm1 <- 100 * sum(diag(mat.confusion_glm1)) / sum(mat.confusion_glm1)
 print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",
               pct.correcto_glm1))
-
 
 csstab_glm1 <- CrossTable(data_test$Survived, predict_glm1,
                           prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
@@ -1193,7 +1204,7 @@ modelo_glm2 <- glm(formula=Survived~ Pclass+SibSp+Sex+Age, data = data_train, fa
 summary(modelo_glm2)
 ```
 
-Se comprueba que todas las variables utilizadas son variables significativas para el modelo. Además, el modelo aprece haber mejorado un poco en cuanto a la predicción:
+Se comprueba que todas las variables utilizadas son variables significativas para el modelo. Además, el modelo parece haber mejorado un poco en cuanto a la predicción:
 
 ```{r message= FALSE, warning=FALSE}
 predict_glm2 <- predict.glm(object=modelo_glm2, newdata=data_test, type = "response")
@@ -1278,9 +1289,7 @@ grid.arrange(plot1, plot2, ncol = 2)
 
 Tanto la variable **Sex** como la variable **Pclass** producen efecto en la variable **Mean_Survived**. También podemos comprobar cómo se produce interacción entre las variables **Sex** y **Pclass** respecto a **Mean_Survived**. Podemos ver cómo hay un descenso muy pronunciado cuando pasamos de mujeres a hombres y estamos tratando la clase 2ª. Observamos además cómo pasar a tercera clase afecta muy negativamente en el caso de las mujeres, ya que aunque no es una línea paralela, el hecho de estar en 1ª o 2ª clase no parece demasiado importante en el caso de las mujeres, pero al pasar a 3ª clase la caída de la media de supervivencia es muy importante.
 
-
-
-Agrupamos el dataset por las variables AgeInterval y Sex y realizamos el mismo proceso
+Agrupamos el dataset por las variables **AgeInterval** y **Sex** y realizamos el mismo proceso
 
 ```{r message= FALSE, warning=FALSE}
 data.agrup <- data %>% group_by(AgeInterval, Sex)
@@ -1302,9 +1311,7 @@ grid.arrange(plot1, plot2, ncol = 2)
   
 ```
 
-En este caso llama la atención el impacto de cuando pasamos el primer intervalo (menores o iguales
-a 12 años) al siguiente intervalo (de 13 a 17 años). La proporción de las mujeres aumenta mientras que en el caso de los hombres disminuye drásticamente. Además, no parece haber apenas diferencia en el primer tramo (los niños, se salvan con independencia del género)
-
+En este caso llama la atención el impacto de cuando pasamos el primer intervalo (menores o igualesa 12 años) al siguiente intervalo (de 13 a 17 años). La proporción de las mujeres aumenta mientras que en el caso de los hombres disminuye drásticamente. Además, no parece haber apenas diferencia en el primer tramo (los niños, se salvan con independencia del género)
 
 Ahora construimos nuestro cuarto modelo de regresión logística. Utilizaremos algunas variables ya usadas en otros modelos más **AgeInterval**:**Sex**. También hemos añadido la interacción que generan **Sex**:**Pclass**. A estas variables le sumamos también las variables independientes **Sex**, **Parch** y **SibSp**.
 
@@ -1329,7 +1336,7 @@ csstab_glm4 <- CrossTable(data_test$Survived, predict_glm4,
 
 ##### Resumen modelos regresion
 
-## Curvas ROC
+**Curvas ROC**
 
 ```{r message= FALSE, warning=FALSE}
 r1$auc
@@ -1362,7 +1369,10 @@ grid.arrange(g1, g2, nrow=2)
 data$SurvivedNum <- NULL
 ```
 
+TODO: ¿Explicación breve de las curvas?
+
 #### Árboles de decisión
+TODO
 
 #### Arboles train
 TODO
@@ -1405,16 +1415,14 @@ testX <- data_test[, c(1:3,5:12)]
 testy <- data_test[, 4]
 ```
 
-##### Importancia Atributos #####
+##### Importancia Atributos
 
-Vamos a crear una función que nos simplifique la generación de gráficas sobre la importancia de los atributos en un model de árbol C5.0.
+Vamos a crear una función que nos simplifique la generación de gráficas sobre la importancia de los atributos en un modelo de árbol C5.0.
 Mostraremos dos métricas
 
 - Usage: porcentaje de observaciones de entrenamiento que caen en todos los nodos generados tras una división en el que ha participado el predictor. Por ejemplo, en el caso de un árbol simple, el predictor empleado en la primera decisión recibe automáticamente una importancia del 100%, ya que todas las observaciones de entrenamiento caen en uno de los dos nodos hijos generados. Otros predictores puede que participen con frecuencia en divisiones, pero si en los nodos hijos solo caen unas pocas observaciones, su importancia puede ser próxima a cero. En el caso de boosting, se promedia la importancia de cada predictor en todos los árboles que forman el ensemble.
 
 - Splits: porcentaje de divisiones en las que participa cada predictor. No tiene en cuenta la importancia de la división.
-
-
 
 
 ```{r message= FALSE, warning=FALSE}
@@ -1453,7 +1461,6 @@ importancia <- function(fit_tree) {
 ##### Primer modelo c5.0
 
 Vamos a empezar realizando un primer modelo C5.0 con los valores por defecto y con las reglas:
-
 
 ```{r}
 bc_tree <- C5.0(trainX, trainy, rules=TRUE )
@@ -1610,22 +1617,24 @@ Hemos procedido a realizar, sobre el conjunto de datos Titanic, las fases de lim
 imputando datos faltantes, comprobando supuestos estadísticos...), hasta finalmente implementar un conjunto de modelos de predicción basados en variables
 dadas y otras creadas nuevas.
 
-El problema que nos planteábamos era: ¿Dado el conjunto de datos que disponemos, podemos predecir la supervivencia o no de un pasajero?
-Los diferentes modelos creados intentan resolverlo con resultados de precisión más bien discretos.
+El problema que nos planteábamos era: ¿Dado el conjunto de datos que disponemos, podemos predecir la supervivencia o no de un pasajero?.
 
-Los modelos que mejor han funcionado han sido los árboles de decisión C5.0, y sobre todo el tercer árbol con boosting de 50 y winnowing con casi un 88% de precisión. No obstante utiliza todos los atributos y no es fácil de visualizar.
+Podemos diferenciar entre las conclusiones del análisis exploratorio y la capacidad de predecir de los modelos creados.
+Del análisis exploratorio podríamos responder a la pregunta: ¿Las mujeres y los niños primero?
+Y la respuesta es que parece que si, que tuvieron mayor proporción de supervivencia, y si ademas eras de clase rica (o viajabas en una clase mejor) tus probabilidades también aumentaban.
+Pero no podemos afirmar que fuese en todos los casos, como constata la dificultad para encontrar un modelo predictivo con una buena precisión.
 
-Del resto de modelos planteado destacaríamos tres de ellos con precisión de 83,78%: Dos regresiones
-logísticas usando datos enriquecidos con variables sintéticas, y un árbol de decisión con profundidad 5 para el que las variables más significativas resultaron ser
-las siguientes: **Sexmale**, **Pclass3** y **FamilySize** (aunque también hemos visto que hay otras variables influyentes en los modelos, y que eran de esperar
-como **Age** y sus variables derivadas, como **Child** y **AgeInterval** y que suponen también una lógica). 
+Los diferentes modelos creados intentan resolverlo con resultados de precisión más bien discretos:
+
+- Los modelos que mejor han funcionado han sido los árboles de decisión C5.0, y sobre todo el tercer árbol con boosting de 50 y winnowing con casi un 88% de precisión. No obstante utiliza todos los atributos y no es fácil de visualizar.
+
+- Del resto de modelos planteado destacaríamos tres de ellos con precisión de 83,78%: Dos regresiones logísticas usando datos enriquecidos con variables sintéticas, y un árbol de decisión con profundidad 5 para el que las variables más significativas resultaron ser las siguientes: **Sexmale**, **Pclass3** y **FamilySize** (aunque también hemos visto que hay otras variables influyentes en los modelos, y que eran de esperar como **Age** y sus variables derivadas, como **Child** y **AgeInterval** y que suponen también una lógica). 
 
 También hemos comprobado que la regresión logística con interacción de variables (modelo glm4) mejora la predicción de supervivientes (a costa de fallar algo más en los no supervivientes).
-Aunque la precisión total de ambos modelos fue equivalente, en el modelo de regresión logística ha fallado en que fallecen el 11,68% y el modelo predice que sobreviven (y sobreviven el 23.53% y el modelo predice lo contrario),
-mientras que en el árbol (tree2) se ha fallado en lo siguiente, fallecen realmente un 7,30% y el modelo predice que sobreviven (y sobreviven el 30,59% y el modelo predice que mueren). 
+Aunque la precisión total de ambos modelos fue equivalente, en el modelo de regresión logística ha fallado en que fallecen el 11,68% y el modelo predice que sobreviven (y sobreviven el 23.53% y el modelo predice lo contrario), mientras que en el árbol (tree2) se ha fallado en lo siguiente, fallecen realmente un 7,30% y el modelo predice que sobreviven (y sobreviven el 30,59% y el modelo predice que mueren). 
 
 Creemos que es preferible que se equivoque más en la predicción de que no van a sobrevivir y al final si lo hacen que en lo contrario (que se prediga que sobrevive y luego no lo haga)
-Esto parece tener sentido, ya que si observamos las 2 variables más importantes del árbol, Sexmale (hombres) y Pclass3 (3a clase), precisamente son las variables que suponen el mayor índice de mortalidad.
+Esto parece tener sentido, ya que si observamos las 2 variables más importantes del árbol, **Sexmale** (hombres) y **Pclass3** (3a clase), precisamente son las variables que suponen el mayor índice de mortalidad.
 
 
 ## Exportación de los datos
@@ -1641,13 +1650,23 @@ TODO##### Exportación de los datos
 
 ```
 
-
 # Tabla de contribuciones
 
-| Contribuciones              | Firma                                    | 
-|-----------------------------|------------------------------------------|
+| Contribuciones              | Firma                                                | 
+|-----------------------------|------------------------------------------            |
 | Investigación Previa        | Alexis Germán Arroyo Peña, Gabriel Pulido de Torres  |
 | Redacción de las respuestas | Alexis Germán Arroyo Peña, Gabriel Pulido de Torres  |
-| Desarrollo código           | Alexis Germán Arroyo Peña, Gabriel Pulido de Torres |
+| Desarrollo código           | Alexis Germán Arroyo Peña, Gabriel Pulido de Torres  |
 
+\newpage
 # Bibliografía y referencias
+
+[1] Arboles de decision, Random Forest, Gradient Boosting y C5.0. [en línea], [sin fecha]. [Consulta: 2 enero 2021]. Disponible en: https://www.cienciadedatos.net/documentos/33_arboles_decision_random_forest_gradient_boosting_c50#C50. 
+
+[2] JARMAN, K.H., 2013. The Art of Data Analysis: How to Answer Almost Any Question Using Basic Statistics. S.l.: s.n. ISBN 9781118413357. 
+
+[3] MAT, L.S., OSWALDO, D., MIREIA, T. y GONZ, C., [sin fecha]. Introducción a la limpieza y análisis de los datos. , 
+
+[4] MOLINA, L.C. y SANGÜESA I SOLÉ, R., [sin fecha]. Módulo 8: Evaluación de modelos. , 
+
+
