@@ -55,7 +55,6 @@ library(scales)
 library(pROC)
 library(xgboost)
 library(randomForest)
-library(rpart.plot)
 library(tidyr)
 library(beeswarm)
 
@@ -1156,6 +1155,53 @@ split = sample.split(data$Survived, SplitRatio = 0.75)
 data_train = subset(data, split == TRUE)
 data_test = subset(data, split == FALSE)
 
+
+# Función necesaria para imprimir la matriz de confusión a partir de un CrossTable
+plot_matriz_confusion <- function(par_crosstable) {
+  #Obtenemos la matriz de confusion en porcentaje
+  datplotconfusion <- as.data.frame(par_crosstable[2]$prop.row)
+  colnames(datplotconfusion) <- c('Observacion','Prediccion','Valor')
+  datplotconfusion$Valor <- datplotconfusion$Valor*100
+  #Ordenamos los factores de las clases
+  datplotconfusion <- datplotconfusion %>% arrange(Observacion)
+  clasesord <- sort(as.character(levels(datplotconfusion$Observacion)),decreasing = FALSE)
+  datplotconfusion$Observacion <- factor(datplotconfusion$Observacion, levels = clasesord)
+  #Ordenar las clases descendente (para el plot)
+  clasesinv<-rev(as.character(unique(datplotconfusion$Observacion)))
+  
+  plot1 <- ggplot() +
+    geom_tile(aes(x=Observacion, y=Prediccion,fill=Valor), 
+              data=datplotconfusion, color="black",size=0.1) +
+    labs(x="Observación real (%)",y="Predicción (%)") +
+    scale_y_discrete(limits=clasesinv)
+  
+  plot1 = plot1 + 
+    geom_text(aes(x=Observacion, y=Prediccion, label=sprintf("%.2f", Valor)), 
+              data=datplotconfusion, size=3, colour="black") +
+    scale_fill_gradient(low="gray",high="red")
+  
+  #Obtenemos la matriz de confusion en numero de muestras
+  datplotconfusion <- as.data.frame(par_crosstable[1]$t)
+  colnames(datplotconfusion) <- c('Observacion','Prediccion','Valor')
+  #Ordenamos los factores de las clases
+  datplotconfusion <- datplotconfusion %>% arrange(Observacion)
+  clasesord <- sort(as.character(levels(datplotconfusion$Observacion)),decreasing = FALSE)
+  datplotconfusion$Observacion <- factor(datplotconfusion$Observacion, levels = clasesord)
+  #Ordenar las clases descendente (para el plot)
+  clasesinv<-rev(as.character(unique(datplotconfusion$Observacion)))
+  plot2 <- ggplot() +
+    geom_tile(aes(x=Observacion, y=Prediccion,fill=Valor), 
+              data=datplotconfusion, color="black",size=0.1) +
+    labs(x="Observación real (nº)",y="Predicción (nº)") +
+    scale_y_discrete(limits=clasesinv)
+  
+  plot2 = plot2 + 
+    geom_text(aes(x=Observacion, y=Prediccion, label=sprintf("%d", Valor)), 
+              data=datplotconfusion, size=3, colour="black") +
+    scale_fill_gradient(low="gray",high="red")
+  return(grid.arrange(plot1, plot2, ncol=2))
+}
+print(plot_matriz_confusion(csstab_glm1))
 ```
 
 
@@ -1344,27 +1390,6 @@ r2$auc
 r3$auc
 r4$auc
 
-colores <- (hue_pal()(4))
-
-ggroc(list(glm1=r1, glm2=r2, glm3=r3, glm4=r4), 
-      aes=c("color"), linetype="dotted", size = 1.1) +
-  geom_segment(aes(x = 1, xend = 0, y = 0, yend = 1), 
-               color="grey", linetype="dashed") +
-  labs(color = "Modelos")
-
-g1<-ggroc(list(glm1=r1, glm2=r2), 
-          aes=c("color"), linetype="solid", size = 1) +
-  geom_segment(aes(x = 1, xend = 0, y = 0, yend = 1), 
-               color="grey", linetype="dashed") +
-  labs(color = "Modelos") +
-  facet_grid(.~name)
-g2<-ggroc(list(glm3=r3, glm4=r4), 
-          aes=c("color"), linetype="solid", size = 1) +
-  geom_segment(aes(x = 1, xend = 0, y = 0, yend = 1), 
-               color="grey", linetype="dashed") +
-  labs(color = "Modelos") +
-  facet_grid(.~name)
-grid.arrange(g1, g2, nrow=2)
 
 data$SurvivedNum <- NULL
 ```
@@ -1372,14 +1397,107 @@ data$SurvivedNum <- NULL
 TODO: ¿Explicación breve de las curvas?
 
 #### Árboles de decisión
-TODO
+
+```{r message= FALSE, warning=FALSE}
+
+tctrl <- caret::trainControl(method = "repeatedcv",
+                             number=10, repeats = 3)
+model_tree1 <- caret::train(Survived~Sex+FamilySize+Child+Age+Pclass, 
+                            data=data_train, 
+                            method="rpart",
+                            trControl = tctrl)
+summary(model_tree1)
+rpart.plot(model_tree1$finalModel)
+
+#Realizamos la predicción con el modelo construido con rpart y el dataset test
+predict_tree1 <-predict(model_tree1, data_test)
+
+mat.confusion_tree1 <- table(data_test$Survived, predict_tree1)
+mat.confusion_tree1
+pct.correcto_tree1 <- 100 * sum(diag(mat.confusion_tree1)) / sum(mat.confusion_tree1)
+print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",
+              pct.correcto_tree1))
+csstab_tree1 <- CrossTable(data_test$Survived, predict_tree1,
+                           prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
+                           dnn = c('Reality', 'Prediction'))
+print(plot_matriz_confusion(csstab_tree1))
+```
 
 #### Arboles train
-TODO
+
+```{r message= FALSE, warning=FALSE}
+
+tctrl <- caret::trainControl(method = "repeatedcv",
+                             number=10, repeats = 3)
+tgrid <- data.frame(maxdepth = seq(2,10,1))
+
+model_tree2<- train(Survived ~ Sex+FamilySize+Child+Age+Pclass, 
+                    data=data_train,
+                    trControl=tctrl, 
+                    tuneGrid=tgrid,
+                    method="rpart2")
+
+rpart.plot(model_tree2$finalModel)
+summary(model_tree2)
+
+#Realizamos la predicción con el modelo construido con rpart y el dataset test
+predict_tree2 <-predict(model_tree2, data_test)
+mat.confusion_tree2 <- table(data_test$Survived, predict_tree2)
+mat.confusion_tree2
+pct.correcto_tree2 <- 100 * sum(diag(mat.confusion_tree2)) / sum(mat.confusion_tree2)
+print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",
+              pct.correcto_tree2))
+print(paste0("El mejor parámetro para el árbol de clasificación ha sido: ",
+             names(model_tree2$bestTune),"=", model_tree2$bestTune))
+csstab_tree2 <- CrossTable(data_test$Survived, predict_tree2,
+                           prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
+                           dnn = c('Reality', 'Prediction'))
+print(plot_matriz_confusion(csstab_tree2))
+
+#Importancia de las variables
+datosVarImp <- varImp(model_tree2)$importance %>% 
+  as.data.frame() %>%
+  rownames_to_column() %>%
+  arrange(Overall)
+datosVarImp$Variable <- reorder(datosVarImp$rowname, datosVarImp$Overall)
+ggplot(datosVarImp)+
+  geom_col(aes(x = Variable, y = Overall), fill="steelblue", color="blue")+
+  coord_flip() + ggtitle("Importancia de las variables")
+
+```
 
 #### Random Forest
-TODO
+```{r message= FALSE, warning=FALSE}
 
+tctrl <- caret::trainControl(method = "repeatedcv",
+                             number=10, repeats = 3)
+model_rf <- caret::train(Survived ~ Sex+Parch+SibSp+Child+Age+Pclass, 
+                         data = data_train, 
+                         method = "rf", 
+                         trControl = tctrl,
+                         verbose = FALSE)
+plot(model_rf)
+predict_rf <- predict(model_rf, data_test)
+mat.confusion_rf <- table(data_test$Survived, predict_rf)
+mat.confusion_rf
+pct.correcto_rf<-100 * sum(diag(mat.confusion_rf)) / sum(mat.confusion_rf)
+print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",
+              pct.correcto_rf))
+csstab_rf <- CrossTable(data_test$Survived, predict_rf,
+                        prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
+                        dnn = c('Reality', 'Prediction'))
+print(plot_matriz_confusion(csstab_rf))
+#Importancia de las variables
+datosVarImp <- varImp(model_rf)$importance %>% 
+  as.data.frame() %>%
+  rownames_to_column() %>%
+  arrange(Overall)
+datosVarImp$Variable <- reorder(datosVarImp$rowname, datosVarImp$Overall)
+ggplot(datosVarImp)+
+  geom_col(aes(x = Variable, y = Overall), fill="steelblue", color="blue")+
+  coord_flip() + ggtitle("Importancia de las variables")
+
+```
 
 #### C5.0
 
@@ -1481,7 +1599,7 @@ Está usando todas las variables, de ahí que nos salgan tantas reglas.
 Vamos a ver la precisión del modelo
 
 ```{r message= FALSE, warning=FALSE}
-predicted_model <- predict( model, testX, type="class" )
+predicted_model <- predict( bc_tree, testX, type="class" )
 print(sprintf("La precisión del árbol es: %.4f %%",100*sum(predicted_model == testy) / length(predicted_model)))
 ```
 Y su matriz de confusión:
@@ -1668,5 +1786,3 @@ TODO##### Exportación de los datos
 [3] MAT, L.S., OSWALDO, D., MIREIA, T. y GONZ, C., [sin fecha]. Introducción a la limpieza y análisis de los datos. , 
 
 [4] MOLINA, L.C. y SANGÜESA I SOLÉ, R., [sin fecha]. Módulo 8: Evaluación de modelos. , 
-
-
