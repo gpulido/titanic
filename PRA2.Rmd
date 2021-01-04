@@ -1633,10 +1633,10 @@ C5.0 es el algoritmo sucesor de C4.5, publicado por John Ross Quinlan (1992), co
 
 
 Creamos primero unas variables para simplificar el uso de los distintos modelos.
-- trainX corresponde al dataframe sin la variable Survived (para el conjunto de train)
+- trainX corresponde a los atributos **Sex**, **Parch**, **SibSp**, **Child**, **Age**, **Pclass** del dataframe sin la variable Survived (para el conjunto de train)
 - trainy es el dataframe pero sólo con la variable Survived (para el conjunto de train)
 
-- testX corresponde al dataframe sin la variable Survived (para el conjunto de test)
+- testX  corresponde a los atributos **Sex**, **Parch**, **SibSp**, **Child**, **Age**, **Pclass** del dataframe sin la variable Survived (para el conjunto de train)
 - testy es el dataframe pero sólo con la variable Survived (para el conjunto de test)
 
 
@@ -1774,7 +1774,7 @@ importancia(bc_winno_tree)
 ```{r warning=FALSE, echo= FALSE}
 tabla.modelos[nrow(tabla.modelos)+1,]<- precision(bc_winno_tree, testX, testy, "C50 2")
 ```
-Es una solución muy parecida a la anterior
+No hemos mejorado los errores
 
 ##### Tercer modelo C5.0 usando boosting
 
@@ -1808,7 +1808,7 @@ bc_boost_tree <- C50::C5.0(
                       trainy,
                       rules   = FALSE,
                       control = C5.0Control(seed = 123, winnow = FALSE),
-                      trials = 30
+                      trials = 10
                     )
 ```
 
@@ -1835,7 +1835,7 @@ TODO: AMPLIAR ALGO
 Durante la resolución de la práctica hemos aprovechado las capacidades didácticas del formato rmd para ir generando las gráficas y tablas en cada una de las secciones y explicando sus interpretaciones, esto es especialmente relevante en el caso del análisis exploratorio pues a la hora de tomar decisiones de limpieza y de uso de variables, disponer de las gráficas en el momento de la decisión es muy útil.
 
 Con respecta a los modelos predictivos, se han ido también creando gráficas representando las tablas de confusión y extrayendo la precisión de los modelos.
-En los árboles se han mostrado, cuando eran suficientemente pequeños, las representaciones gráficas de los mismos, y cuando no se han mostrado datos y tablas numéricas explicando brevemente su utilidad.
+En los árboles se han mostrado, cuando eran suficientemente pequeños, las representaciones gráficas de los mismos, y cuando no, se han mostrado datos y tablas numéricas explicando brevemente su utilidad.
 
 Si que podemos exponer un resumen del comportamiento de los diferentes modelos predictivos creados a lo largo del ejercicio
 
@@ -1858,14 +1858,16 @@ Del análisis exploratorio podríamos responder a la pregunta: ¿Las mujeres y l
 Y la respuesta es que parece que si, que tuvieron mayor proporción de supervivencia, y si ademas eras de clase rica (o viajabas en una clase mejor) tus probabilidades también aumentaban.
 Pero no podemos afirmar que fuese en todos los casos, como constata la dificultad para encontrar un modelo predictivo con una buena precisión.
 
-Los diferentes modelos creados intentan resolverlo con resultados de precisión más bien discretos:
+Hemos creado diferentes modelos predictivos y los resultados de precisión han sido mas bien discretos:
 
-TODO: Resumir datos.
+- Destaca una regresión logística con una precisión del 82.43%, usando datos enriquecidos con variables sintéticas con 39 errores de predicción con los datos de tests.
 
+- Ninguno de Los árboles de decisión planteados ha conseguido mejorar ese registro, quedándose como mejores dos c5.0 en un 80,63% de precision y 43 errores. El uso de un conjunto mas limitado de atributos tras el análisis previo, ha resultado en que la técnica de winnowing no mejore los resultados, pues todos los atributos son usados. Lo que si varía entre los distintos c5.0 es el balance entre los tipos de errores. Dado el tipo de problema que se plantea sería preferible quedarse con los modelos que fallan mas prediciendo más "no-supervivencia" (y luego si que sobreviven ) que los que fallan más prediciendo mas supervivencia y luego no sobreviven.
 
-- Del resto de modelos planteado destacaríamos tres de ellos con precisión de 83,78%: Dos regresiones logísticas usando datos enriquecidos con variables sintéticas, y un árbol de decisión con profundidad 5 para el que las variables más significativas resultaron ser las siguientes: **Sexmale**, **Pclass3** y **FamilySize** (aunque también hemos visto que hay otras variables influyentes en los modelos, y que eran de esperar como **Age** y sus variables derivadas, como **Child** y **AgeInterval** y que suponen también una lógica). 
+- También hemos comprobado que la regresión logística con interacción de variables (modelo glm4) mejora la predicción de supervivientes (a costa de fallar algo más en los no supervivientes).
 
-También hemos comprobado que la regresión logística con interacción de variables (modelo glm4) mejora la predicción de supervivientes (a costa de fallar algo más en los no supervivientes).
+TODO: Este párrafo hay que ajustarlo a los valores actuales
+
 Aunque la precisión total de ambos modelos fue equivalente, en el modelo de regresión logística ha fallado en que fallecen el 11,68% y el modelo predice que sobreviven (y sobreviven el 23.53% y el modelo predice lo contrario), mientras que en el árbol (tree2) se ha fallado en lo siguiente, fallecen realmente un 7,30% y el modelo predice que sobreviven (y sobreviven el 30,59% y el modelo predice que mueren). 
 
 Creemos que es preferible que se equivoque más en la predicción de que no van a sobrevivir y al final si lo hacen que en lo contrario (que se prediga que sobrevive y luego no lo haga)
