@@ -352,6 +352,10 @@ En este caso si se observa una relación entre la edad y la clase en que viajaba
 lista<-sapply(data, is.numeric) 
 data_num_NoNA = data_NoNA[,lista]
 corrplot(cor(data_num_NoNA), method="number")
+```
+
+
+```{r message= FALSE, warning=FALSE}
 corrplot.mixed(cor(data_num_NoNA))
 ```
 
@@ -885,7 +889,7 @@ Si tenemos en cuenta que la tabla de contingencia que estamos evaluando es la si
 table(data$Sex, data$Survived)
 ```
 
-El odd ratio de la tabla de contigengica lo calculamos así:
+El odd ratio de la tabla de contigencia lo calculamos así:
 
 ```{r message= FALSE, warning=FALSE}
 tab.contigencia = table(data$Sex, data$Survived)
@@ -1201,7 +1205,6 @@ plot_matriz_confusion <- function(par_crosstable) {
     scale_fill_gradient(low="gray",high="red")
   return(grid.arrange(plot1, plot2, ncol=2))
 }
-print(plot_matriz_confusion(csstab_glm1))
 ```
 
 
@@ -1226,9 +1229,9 @@ Ahora usamos el conjunto de datos de test para validar nuestro modelo
 
 ```{r message= FALSE, warning=FALSE}
 predict_glm1 <- predict(object=modelo_glm1, newdata=data_test, type = "response")
-r1 = pROC::roc(response=data_test$Survived, predictor = predict_glm1)
-threshold_r1 <- coords(r1, "best", ret = "threshold")
-predict_glm1 <- ifelse(predict_glm1 < threshold_r1, 0, 1)
+r1 <- pROC::roc(response=data_test$Survived, predictor = predict_glm1)
+threshold_r1 <- pROC::coords(r1, "best", ret = "threshold", transpose="FALSE")
+predict_glm1 <- if_else(predict_glm1 < threshold_r1[1,1], 0, 1)
 mat.confusion_glm1 <- table(data_test$Survived, predict_glm1)
 mat.confusion_glm1
 pct.correcto_glm1 <- 100 * sum(diag(mat.confusion_glm1)) / sum(mat.confusion_glm1)
@@ -1256,7 +1259,7 @@ Se comprueba que todas las variables utilizadas son variables significativas par
 predict_glm2 <- predict.glm(object=modelo_glm2, newdata=data_test, type = "response")
 r2 = pROC::roc(response=data_test$Survived, predictor = predict_glm2)
 threshold_r2 <- coords(r2, "best", ret = "threshold")
-predict_glm2 <- ifelse(predict_glm2 < threshold_r2, 0, 1)
+predict_glm2 <- ifelse(predict_glm2 < threshold_r2[1,1], 0, 1)
 mat.confusion_glm2 <- table(data_test$Survived, predict_glm2)
 mat.confusion_glm2
 pct.correcto_glm2 <- 100 * sum(diag(mat.confusion_glm2)) / sum(mat.confusion_glm2)
@@ -1283,7 +1286,7 @@ Al igual que pasaba en el modelo2, todas las variables utilizadas han resultado 
 predict_glm3 <- predict.glm(object=modelo_glm3, newdata=data_test, type = "response")
 r3 = pROC::roc(response=data_test$Survived, predictor = predict_glm3)
 threshold_r3 <- coords(r3, "best", ret = "threshold")
-predict_glm3 <- ifelse(predict_glm3 < threshold_r3, 0, 1)
+predict_glm3 <- ifelse(predict_glm3 < threshold_r3[1,1], 0, 1)
 mat.confusion_glm3 <- table(data_test$Survived, predict_glm3)
 mat.confusion_glm3
 pct.correcto_glm3 <- 100 * sum(diag(mat.confusion_glm3)) / sum(mat.confusion_glm3)
@@ -1368,7 +1371,7 @@ summary(modelo_glm4)
 predict_glm4 <- predict.glm(object=modelo_glm4, newdata=data_test, type = "response")
 r4 = pROC::roc(response=data_test$Survived, predictor = predict_glm4)
 threshold_r4 <- coords(r4, "best", ret = "threshold")
-predict_glm4 <- ifelse(predict_glm4 < threshold_r4, 0, 1)
+predict_glm4 <- ifelse(predict_glm4 < threshold_r4[1,1], 0, 1)
 mat.confusion_glm4 <- table(data_test$Survived, predict_glm4)
 mat.confusion_glm4
 pct.correcto_glm4 <- 100 * sum(diag(mat.confusion_glm4)) / sum(mat.confusion_glm4)
@@ -1390,7 +1393,6 @@ r2$auc
 r3$auc
 r4$auc
 
-
 data$SurvivedNum <- NULL
 ```
 
@@ -1398,7 +1400,7 @@ TODO: ¿Explicación breve de las curvas?
 
 #### Árboles de decisión
 
-```{r message= FALSE, warning=FALSE}
+```{r}
 
 tctrl <- caret::trainControl(method = "repeatedcv",
                              number=10, repeats = 3)
@@ -1407,25 +1409,35 @@ model_tree1 <- caret::train(Survived~Sex+FamilySize+Child+Age+Pclass,
                             method="rpart",
                             trControl = tctrl)
 summary(model_tree1)
-rpart.plot(model_tree1$finalModel)
+```
 
-#Realizamos la predicción con el modelo construido con rpart y el dataset test
+Dibujamos el árbol
+
+```{r}
+rpart.plot(model_tree1$finalModel)
+```
+
+Realizamos la predicción con el modelo construido con rpart y el dataset test
+
+```{r}
+
 predict_tree1 <-predict(model_tree1, data_test)
 
 mat.confusion_tree1 <- table(data_test$Survived, predict_tree1)
 mat.confusion_tree1
+
 pct.correcto_tree1 <- 100 * sum(diag(mat.confusion_tree1)) / sum(mat.confusion_tree1)
-print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",
-              pct.correcto_tree1))
+
+print(sprintf("El %% de registros correctamente clasificados es: %.4f %%", pct.correcto_tree1))
 csstab_tree1 <- CrossTable(data_test$Survived, predict_tree1,
                            prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
                            dnn = c('Reality', 'Prediction'))
-print(plot_matriz_confusion(csstab_tree1))
+plot_matriz_confusion(csstab_tree1)
 ```
 
 #### Arboles train
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 
 tctrl <- caret::trainControl(method = "repeatedcv",
                              number=10, repeats = 3)
@@ -1436,11 +1448,20 @@ model_tree2<- train(Survived ~ Sex+FamilySize+Child+Age+Pclass,
                     trControl=tctrl, 
                     tuneGrid=tgrid,
                     method="rpart2")
+```
 
+```{r message= FALSE, warning=FALSE, echo=FALSE}
 rpart.plot(model_tree2$finalModel)
-summary(model_tree2)
+```
 
-#Realizamos la predicción con el modelo construido con rpart y el dataset test
+
+```{r, message= FALSE, warning=FALSE,}
+summary(model_tree2)
+```
+
+Realizamos la predicción con el modelo construido con rpart y el dataset test
+
+```{r}
 predict_tree2 <-predict(model_tree2, data_test)
 mat.confusion_tree2 <- table(data_test$Survived, predict_tree2)
 mat.confusion_tree2
@@ -1449,12 +1470,20 @@ print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",
               pct.correcto_tree2))
 print(paste0("El mejor parámetro para el árbol de clasificación ha sido: ",
              names(model_tree2$bestTune),"=", model_tree2$bestTune))
+```
+
+**Matriz de confusión**
+
+```{r}
 csstab_tree2 <- CrossTable(data_test$Survived, predict_tree2,
                            prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
                            dnn = c('Reality', 'Prediction'))
-print(plot_matriz_confusion(csstab_tree2))
+plot_matriz_confusion(csstab_tree2)
+```
 
-#Importancia de las variables
+**Importancia de las variables**
+```{r}
+
 datosVarImp <- varImp(model_tree2)$importance %>% 
   as.data.frame() %>%
   rownames_to_column() %>%
@@ -1467,6 +1496,7 @@ ggplot(datosVarImp)+
 ```
 
 #### Random Forest
+
 ```{r message= FALSE, warning=FALSE}
 
 tctrl <- caret::trainControl(method = "repeatedcv",
@@ -1477,17 +1507,28 @@ model_rf <- caret::train(Survived ~ Sex+Parch+SibSp+Child+Age+Pclass,
                          trControl = tctrl,
                          verbose = FALSE)
 plot(model_rf)
+```
+
+Mostramos la matriz de confusión
+```{r}
 predict_rf <- predict(model_rf, data_test)
 mat.confusion_rf <- table(data_test$Survived, predict_rf)
 mat.confusion_rf
 pct.correcto_rf<-100 * sum(diag(mat.confusion_rf)) / sum(mat.confusion_rf)
 print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",
               pct.correcto_rf))
+```
+
+```{r}
 csstab_rf <- CrossTable(data_test$Survived, predict_rf,
                         prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
                         dnn = c('Reality', 'Prediction'))
-print(plot_matriz_confusion(csstab_rf))
-#Importancia de las variables
+plot_matriz_confusion(csstab_rf)
+```
+
+**Importancia de las variables**
+
+```{r message= FALSE, warning=FALSE}
 datosVarImp <- varImp(model_rf)$importance %>% 
   as.data.frame() %>%
   rownames_to_column() %>%
@@ -1496,10 +1537,11 @@ datosVarImp$Variable <- reorder(datosVarImp$rowname, datosVarImp$Overall)
 ggplot(datosVarImp)+
   geom_col(aes(x = Variable, y = Overall), fill="steelblue", color="blue")+
   coord_flip() + ggtitle("Importancia de las variables")
-
 ```
 
+
 #### C5.0
+
 
 C5.0 es el algoritmo sucesor de C4.5, publicado por John Ross Quinlan (1992), con el objetivo de crear árboles de clasificación. Entre sus características, destacan la capacidad para generar árboles de decisión simples, modelos basados en reglas, ensembles basados en boosting y asignación de distintos pesos a los errores. Este algoritmo ha resultado de una gran utilidad a la hora de crear modelos de clasificación y todas sus capacidades son accesibles mediante el paquete C50. Aunque comparte muchas características con los algoritmos de random forest y gradient boosting, cabe tener en cuenta algunas peculiaridades:
 
@@ -1526,7 +1568,7 @@ Creamos primero unas variables para simplificar el uso de los distintos modelos.
 - testy es el dataframe pero sólo con la variable Survived (para el conjunto de test)
 
 
-```{r}
+```{r message= FALSE, warning=FALSE} 
 trainX <- data_train[, c(1:3,5:12)]
 trainy <- data_train[, 4]
 testX <- data_test[, c(1:3,5:12)]
@@ -1584,17 +1626,18 @@ Vamos a empezar realizando un primer modelo C5.0 con los valores por defecto y c
 bc_tree <- C5.0(trainX, trainy, rules=TRUE )
 summary(bc_tree)
 ```
+
 Errors muestra el número y porcentaje de casos mal clasificados en el subconjunto de entrenamiento. El árbol obtenido clasifica erróneamente 79 668 casos dados, una tasa de error del 11.8%.
 
-Aunque podríamos representar el árbol, nos han salido 21 reglas y es complicado de visualizar. Lo analizamos númericamente.
+Aunque podríamos representar el árbol, nos han salido 11 reglas y es complicado de visualizar. Lo analizamos númericamente.
 
 Primero veamos visualmente la importancia de cada variable:
 
 
-```{r}
+```{r message= FALSE, warning=FALSE} 
 importancia(bc_tree)
 ```
-Está usando todas las variables, de ahí que nos salgan tantas reglas.
+Está usando casi todas las variables, de ahí que nos salgan tantas reglas.
 
 Vamos a ver la precisión del modelo
 
@@ -1605,10 +1648,12 @@ print(sprintf("La precisión del árbol es: %.4f %%",100*sum(predicted_model == 
 Y su matriz de confusión:
 
 ```{r message= FALSE, warning=FALSE}
-mat_conf<-table(testy,Predicted=predicted_model)
-mat_conf
+csstab_bc_tree <- CrossTable(testy, predicted_model,
+                        prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
+                        dnn = c('Reality', 'Prediction'))
+plot_matriz_confusion(csstab_bc_tree)
 ```
-Se observa que tenemos 35 errores de clasificación.
+Se observa que tenemos 32 errores de clasificación.
 
 ##### Segundo modelo C5.0 con Winnowing
 
@@ -1642,20 +1687,19 @@ Hay dos atributos que directamente no son usados, comprobamos si hemos mejorado 
 
 ```{r message= FALSE, warning=FALSE}
 bc_winno_tree_pred <- predict( bc_winno_tree, testX, type="class" )
+print(sprintf("La precisión del árbol es: %.4f %%",100*sum(bc_winno_tree_pred == testy) / length(bc_winno_tree_pred)))
 ```
 
 ```{r message= FALSE, warning=FALSE}
-mat_conf<-table(testy, Predicted=bc_winno_tree_pred)
-mat_conf
+csstab_bc_winno_tree_pred <- CrossTable(testy, bc_winno_tree_pred,
+                        prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
+                        dnn = c('Reality', 'Prediction'))
+plot_matriz_confusion(csstab_bc_winno_tree_pred)
+
 ```
 Tenemos 30 errores en este caso.
 
-```{r message= FALSE, warning=FALSE}
 
-porcentaje_correct<-100 * sum(diag(mat_conf)) / sum(mat_conf)
-print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",porcentaje_correct))
-
-```
 
 Hemos mejorado casi dos puntos, obteniendo el mejor modelo por el momento
 
@@ -1685,7 +1729,7 @@ postResample(predict(tuned, testX), testy)
 plot(tuned, metric = "Kappa")
 ```
 
-Los valores anteriores son orientativos y nos sirven para acotar más facilmente los parámetros en los que buscar.
+Los valores anteriores son orientativos y nos sirven para acotar más fácilmente los parámetros en los que buscar.
 
 Vamos a crear el mejor árbol con winnowing y boost, usando 50 trials y sin reglas:
 
@@ -1693,9 +1737,9 @@ Vamos a crear el mejor árbol con winnowing y boost, usando 50 trials y sin regl
 bc_boost_tree <- C5.0(
                       formula = Survived ~ ., 
                       data    = data_train,
-                      rules   = FALSE,
+                      rules   = TRUE,
                       control = C5.0Control(seed = 123, winnow = TRUE),
-                      trials = 50
+                      trials = 40
                     )
 ```
 
@@ -1705,23 +1749,20 @@ Como antes, vemos la importancia de los atributos:
 ```{r message= FALSE, warning=FALSE}
 importancia(bc_boost_tree)
 ```
-Em este caso todos los atributos tienen un uso muy alto.
+En este caso todos los atributos tienen un uso muy alto.
 
 De nuevo calculamos matriz de confusión
 
 ```{r message= FALSE, warning=FALSE}
 bc_boost_tree_pred <- predict( bc_boost_tree, testX, type="class" )
-mat_conf<-table(testy, Predicted=bc_boost_tree_pred)
-mat_conf
+print(sprintf("La precisión del árbol es: %.4f %%",100*sum(bc_boost_tree_pred == testy) / length(bc_boost_tree_pred)))
+csstab_bc_winno_tree_pred <- CrossTable(testy, bc_winno_tree_pred,
+                        prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
+                        dnn = c('Reality', 'Prediction'))
+plot_matriz_confusion(csstab_bc_winno_tree_pred)
 ```
-Tenemos 27 errores en este caso.
+Tenemos 26 errores en este caso.
 
-```{r message= FALSE, warning=FALSE}
-
-porcentaje_correct<-100 * sum(diag(mat_conf)) / sum(mat_conf)
-print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",porcentaje_correct))
-
-```
 Hemos conseguido mejorar en casi un punto porcentual.
 
 \newpage
@@ -1764,7 +1805,7 @@ que hemos considerado necesarias.
 - Un fichero “titanic_predict.csv”, en el que además de las columnas que tiene el fichero anterior, tiene una columna nueva llamada “Survived_Predicted”, que es la columna con la predicción de la variable “Survived” realizada con el modelo escogido.
 
 TODO##### Exportación de los datos
-```{r}
+```{r message= FALSE, warning=FALSE}
 
 ```
 
