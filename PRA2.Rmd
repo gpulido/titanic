@@ -57,6 +57,9 @@ library(xgboost)
 library(randomForest)
 library(tidyr)
 library(beeswarm)
+set.seed(123, sample.kind="default", normal.kind = "default")
+
+
 
 ```
 
@@ -1163,7 +1166,6 @@ Vamos a utilizar como variables explicativas las variables que traía por defect
 Creamos un conjunto de entrenamiento y un conjunto de test. Es decir,vamos a realizar una partición, un 75% de datos para el entrenamiento, y el 25% restante para validar los modelos.
 
 ```{r warning=FALSE}
-set.seed(123)
 
 index_train <- createDataPartition(data$Survived, p=.75, list = FALSE)
 data_train <-data[index_train,]
@@ -1786,7 +1788,6 @@ Es una labor tediosa que podemos simplificar usando la librería ```caret```, qu
 En este caso vamos a usar Cohen-Kappa como medición de calidad del modelo, y compararemos C5.0 generados con distintas iteraciones (boosting) combinándolo con winnowing y con rules/tree.
 
 ```{r warning=FALSE}
-set.seed(123)
 tuned <- train(trainX, trainy, method = "C5.0", tuneLength = 11,
          trControl = trainControl(method = "repeatedcv", repeats = 5, allowParallel = F),
          metric = "Kappa")
