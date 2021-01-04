@@ -66,12 +66,14 @@ Hemos optado por analizar el dataset de datos del titanic.
 
 En este conjunto de datos tenemos información acerca de los pasajeros que iban en el Titanic, naufragado en 1912 y en el que murieron 1500 personas. Además de información descriptiva del tipo de pasajero tenemos también el indicador de si sobrevivió al hundimiento o no. El objetivo es decidir si las variables aportadas son suficientes para crear un modelo predictivo que prediga la supervivencia o no de un pasajero.
 
+Es un buen ejemplo de conjunto de datos que permiten entrenar modelos predictivos supervisados. Contiene un número manejable de datos y de atributos de distintos y variados tipos.
+A su vez es un conjunto que no está limpio (contiene nulos por ejemplo) lo que nos obligará a poner en práctica técnicas de limpieza de los datos.
+
+**Estructura del dataset**
+
 Realizamos un primer contacto con el conjunto de datos, visualizando su estructura.  
 
 ```{r echo=TRUE, message=FALSE, warning=FALSE}
-# Cargamos los paquetes R que vamos a usar
-
-
 # Cargamos el fichero de datos
 data <- read.csv('train.csv',stringsAsFactors = FALSE, na.strings = "")
 dim.data.frame(data)
@@ -119,9 +121,6 @@ El conjunto de datos incluye 12 variables y 891 observaciones.
 - Embarked:
   el puerto en el que embarcó el pasajero (C = Cherbourg, Q =Queenstown, S = Southampton).
 
-## Objetivo
-
-El objetivo es decidir si las variables aportadas son suficientes para crear un modelo predictivo que prediga la supervivencia o no de un pasajero.
 
 \newpage
 # Integración y selección de los datos de interés a analizar.
@@ -131,16 +130,16 @@ La diferencia principal es que mientras que en el conjunto de datos de train dis
 
 Como parte de los modelos que vamos a diseñar son modelos supervisados, a la hora de validarlos no podemos usar el conjunto de datos de test, por lo que optamos trabajar sólamente con los de train sin fusionarlos. 
 
-En el apartado anterior leimos los datos en un dataframe (al que llamamos "data"). Vemos su dimensionalidad, los nombres y tipos de las variables:
+En el apartado anterior leímos los datos en un dataframe (al que llamamos "data"). Recordamos su dimensionalidad y comprobamos los nombres y tipos de las variables.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, echo=FALSE}
 dim.data.frame(data)
 sapply(data, function(x) class(x))
 ```
 
 Aprovechamos para comprobar si hay registros duplicados usando el comando unique()
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data_unique <- unique(data)
 dim.data.frame(data_unique)
 remove(data_unique)
@@ -150,19 +149,18 @@ Se comprueba que la dimensionalidad ha quedado exactamente igual que cuando carg
 
 Mostramos una muestra de los primeros registros de nuestro dataframe:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 summary(data)
-
 df_status(data)
 ```
 
-Hay algunas variables que carecen de interés por ser identificativas de cada registro. Se tratan de “PassengerId”, “Ticket” y “Name”. No nos interesa tener unívocamente identificado cada caso para realizar ningún tipo de análisis, no aportan nada. 
+Hay algunas variables que carecen de interés por ser identificativas de cada registro. Se tratan de “PassengerId”, “Ticket” y “Name”. No nos interesa tener unívocamente identificado cada caso para realizar ningún tipo de análisis, no aportan nada.
 
 ## PersonasTicket
 
 Antes de eliminar la variable **Ticket**, nos va a servir para conocer el precio unitario que han pagado los pasajeros, ya que la variable **Fare** es la tarifa pagada en el ticket, pero dentro del mismo ticket pueden estar incluidas varias personas. Inicialmente vamos a obtener el número de personas que están incluidas en un mismo ticket.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 nrow(table(data$Ticket, data$Fare))
 length(unique(data$Ticket))
 
@@ -172,7 +170,7 @@ data %>% group_by(Ticket, Fare) %>% filter(row_number() == 1)
 
 Podemos obtener el precio por persona, dividiendo Fare / integrantes del ticket:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 ticket_personas <- as.data.frame(data %>% 
                                    group_by(Ticket) %>% 
                                    dplyr::summarize(PersonasTicket=n()))
@@ -180,26 +178,26 @@ ticket_personas <- as.data.frame(data %>%
 
 Creamos un nuevo dataframe (llamado "ticket_personas") con las variables **Ticket** y **PersonasTicket** 
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 df_status(ticket_personas)
 ```
 
 Este nuevo dataframe lo combinamos con nuestro dataframe original (un join) a través del número de ticket (variable **Ticket**) para poder incorporar el número de personas al dataframe original. Después de juntarlos eliminamos el df ticket_personas pues no lo necesitaremos.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data <- merge(data, ticket_personas, by = "Ticket")
 remove(ticket_personas)
 ```
 
 Ahora tenemos en nuestro dataframe original “data” una nueva variable “PersonasTicket”. Esa variable será utilizada para dividir la tarifa del ticket “Fare” entre esta nueva columna incorporada. Con ello obtenemos una nueva variable que le llamamos “Price” y es el precio por persona que se paga en el billete (obteniendo un precio por persona lineal por billete).
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data$Price <- data$Fare / data$PersonasTicket
 ```
 
 Ahora ya podemos eliminar todas las variables que no vamos a necesitar: PassengerId, Name, Ticket, PersonasTicket:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data <- select(data, -PassengerId, -Name, -Ticket, -PersonasTicket)
 ```
 
@@ -207,7 +205,7 @@ data <- select(data, -PassengerId, -Name, -Ticket, -PersonasTicket)
 
 Revisando **Parch** (número de Padres / hijos a bordo) y **SibSp** (sibling: número de hermanos, hermanas, hermanastros y hermanastras  del pasajero, spouse: Marido o mujer del pasajero en el titanic ) vemos que las podemos agregar en una nueva variable **FamilySize** que será la suma de estas dos variables más el propio viajero en cuestión. Por ello esta variable como mínimo valdrá uno.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data$FamilySize = data$SibSp + data$Parch + 1
 ```
 
@@ -216,7 +214,7 @@ data$FamilySize = data$SibSp + data$Parch + 1
 Tenemos algunas variables que, aunque a priori aparecen como “numeric” o “character” deberíamos convertir a “factor”. Estas variables son: **Survived**, **Pclass**, **Embarked** y **Sex**.
 Tienen un número finito de valores y aunque puedan ser numéricas, ese número no nos aporta información con lo que los discretizamos convirtiendolos en factores:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data$Sex <- as.factor(data$Sex)
 data$Survived <- as.factor(data$Survived)
 data$Pclass <- as.factor(data$Pclass)
@@ -228,7 +226,7 @@ La variable **Cabin** es de tipo character, pero como vamos a eliminarla no hare
 
 Finalmente nos quedarían como variables numéricas: **Age**, **SubSp**, **Parch**, **FamilySize**, **Fare** y **Price**
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 summary(data)
 ```
 
@@ -238,7 +236,7 @@ summary(data)
 
 Analizamos los valores nulos y vacíos. Para ello nos valemos de la salida de la función *df_status*, que nos muestra un resumen del estado de nuestras 8 variables actuales:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 df_status(data)
 ```
 
@@ -247,7 +245,9 @@ df_status(data)
 
 ### Elementos nulos
 
-```{r message= FALSE, warning=FALSE}
+Procedemos a analizar los elementos nulos que se encuentran en el dataset
+
+```{r warning=FALSE}
 data %>% group_by(Embarked) %>% count(Embarked)
 ```
 
@@ -258,14 +258,14 @@ Analizamos cada uno de los atributos para decidir la mejor decisión con respect
 
 Solo hay 2 valores nulos, al ser muy pocos casos y además la variable solo puede tomar 3 posibles valores, decidimos imputar el valor que más se repite, que es Embarked=S (Southampton)
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data %>% group_by(Embarked) %>% count(Embarked)
 data_Embarked <- sort(table(data$Embarked, useNA = "ifany"), decreasing = TRUE)
 ```
 
 Gráficamente:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 dat_plot <- as.data.frame(data_Embarked)
 ggplot(dat_plot, aes(x=Var1, y=Freq, fill=Var1)) +
   geom_bar(stat = "identity", color = "black") +
@@ -276,7 +276,7 @@ ggplot(dat_plot, aes(x=Var1, y=Freq, fill=Var1)) +
 
 Asignamos el valor mas frecuente a los casos nulos:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data$Embarked[is.na(data$Embarked)] <- names(data_Embarked[1])
 ```
 
@@ -284,7 +284,7 @@ data$Embarked[is.na(data$Embarked)] <- names(data_Embarked[1])
 
 Dado que el número de nulos es muy elevado, un 77%, se opta por eliminar esta variable ya que tendríamos que imputar valores a una parte muy importante del dataset (con su consiguiente error). Además no parece que pueda ser una variable determinante para predecir la supervivencia.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data <- select(data, -Cabin)
 ```
 
@@ -295,27 +295,28 @@ Tiene mas del un 19% de valores nulos (concretamente 177 registros)
 Una opción para solucionarlos sería calcular la media del resto de registros e imputarla, pero vamos a estudiar si podemos delimitar la media a aplicar para obtener un resultado más depurado.
 
 Primero analizamos la distribución de la variable **Age** teniendo en cuenta sólo los registros donde hay valores (es decir algo mas del 80% del dataframe).
-Para ello creamos un nuevo dataset sin los registros nulos de Age
+Para ello creamos un nuevo dataset sin los registros nulos de Age:
 
-```{r message= FALSE, warning=FALSE}
-data_NoNA = data[which(!is.na(data$Age)),]
+```{r warning=FALSE}
+data_NoNA <- data[which(!is.na(data$Age)),]
 ```
 
 Observamos gráficamente como se distribuye la variable Age en este dataset:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, echo=FALSE}
 ggplot(data_NoNA, aes(Age))+
   geom_histogram(aes(y = ..density..), bins=50, fill="steelblue", color="blue") + 
   stat_function(fun = dnorm, args = list(mean = mean(data_NoNA$Age), sd = sd(data_NoNA$Age)))
 ```
 
-Comprobamos si hay alguna relación entre la edad alguna del resto de variables, para tenerlo en cuenta a la hora de imputar valores
+Comprobamos si hay alguna relación entre la edad y alguna otra variable del dataset para tenerlo en cuenta a la hora de imputar valores.
+Para ello iremos analizando Age con las distintas variables
 
 ##### Age vs Sex
 
-Comprobamos gráficamente la relación entre la edad y el género
+Observamos gráficamente la relación entre la edad y el género
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 titulo <- 'Age vs Sex'
 ggplot(data_NoNA, aes(y=Age, x=Sex, fill=Sex)) + geom_boxplot() + labs(title = paste0('Boxplot: ', titulo)) + ylab("Age") + xlab("Sex")
 ```
@@ -326,7 +327,7 @@ No se aprecian casi diferencias de edad en función del género
 
 Comprobamos gráficamente la relación entre la edad y el puerto de Embarque
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 titulo <- 'Age vs Embarked'
 ggplot(data_NoNA, aes(y=Age, x=Embarked, fill=Embarked)) + 
   geom_boxplot() + labs(title = paste0('Boxplot: ', titulo)) + ylab("Age") + xlab("Embarked")
@@ -338,7 +339,7 @@ Tampoco se aprecian diferencias significativas en este caso con respecto a las m
 
 Representamos visualmente la relación entre Age y Pclass:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 titulo <- 'Age vs Pclass'
 ggplot(data_NoNA, aes(y=Age, x=Pclass, fill=Pclass)) + 
   geom_boxplot() + labs(title = paste0('Boxplot: ', titulo)) + ylab("Age") + xlab("Pclass")
@@ -348,14 +349,14 @@ En este caso si se observa una relación entre la edad y la clase en que viajaba
 
 ##### Age vs Variables numéricas
 
-```{r message= FALSE, warning=FALSE}
+Vemos las distintas correlaciones de las variables numéricas
+
+```{r warning=FALSE,  echo=FALSE}
 lista<-sapply(data, is.numeric) 
 data_num_NoNA = data_NoNA[,lista]
-corrplot(cor(data_num_NoNA), method="number")
 ```
 
-
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 corrplot.mixed(cor(data_num_NoNA))
 ```
 
@@ -365,9 +366,9 @@ Se observa que existe correlación negativa con **SibSp** y con **Parch** (tambi
 
 Tras el análisis de las diversas relaciones entre las variables y **Age** vamos a realizar cuatro simulaciones diferentes de imputación y nos quedaremos con una sola:
 
-- Caso 1: Imputar la media de **Age** a todos los elementos faltantes
+**Caso 1: Imputar la media de **Age** a todos los elementos faltantes**
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data$Age1 <- data$Age
 data$Age1[is.na(data$Age1)] <- mean(data_NoNA$Age)
 
@@ -377,9 +378,9 @@ ggplot(data, aes(Age1)) +
 ```
 
 
-- Caso 2: Imputar la media de **Age** pero por cada una de las clases(**Pclass**) ya que hemos visto que hay una relación entre ambas variables.
+**Caso 2: Imputar la media de **Age** pero por cada una de las clases(**Pclass**) ya que hemos visto que hay una relación entre ambas variables.**
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data$Age2 <- data$Age
 data$Age2[is.na(data$Age2)&data$Pclass == 1] <- mean(data$Age2[!is.na(data$Age2)&data$Pclass == 1])
 data$Age2[is.na(data$Age2)&data$Pclass == 2] <- mean(data$Age2[!is.na(data$Age2)&data$Pclass == 2])
@@ -390,16 +391,18 @@ ggplot(data, aes(Age2)) +
   stat_function(fun = dnorm, args = list(mean = mean(data$Age2), sd = sd(data$Age2)))
 ```
 
-- Caso 3: Imputar la datos en **Age**, pero teniendo en cuenta **Pclass**, **Parch** y **SibSp**, ya que hemos visto correlación entre las variables. Para este caso lo que hacemos es tener en cuenta las 3 variables y generar una agrupación de datos calculando la media para las combinaciones (recordemos que son variables discretas). Una vez que obtenemos esos valores medios, los imputamos. Luego verificamos si quedó algún valor sin imputar (que serán muy pocos) y para esos pocos casos faltantes, imputar los valores por cada clase.
+**Caso 3: Imputar la datos en Age, pero teniendo en cuenta Pclass, Parch y SibSp**
 
-```{r message= FALSE, warning=FALSE}
+Este caso surge al haber visto correlación entre las variables. Para este caso lo que hacemos es tener en cuenta las 3 variables y generar una agrupación de datos calculando la media para las combinaciones (recordemos que son variables discretas). Una vez que obtenemos esos valores medios, los imputamos. Luego verificamos si quedó algún valor sin imputar (que serán muy pocos) y para esos pocos casos faltantes, imputar los valores por cada clase.
+
+```{r warning=FALSE}
 medias_clase_fam <- as.data.frame(data_NoNA %>% group_by(Pclass, SibSp, Parch) %>% dplyr::summarize(Media_clase_fam = mean(Age)))
 ```
 
 Hacemos un merge entre nuestro dataset original y el de Medias (por **Pclass**, **SibSp** y **Parch**) a través de las columnas usadas en la agrupación.
 El merge es un LEFT JOIN ya que puede que no existan todas las combinaciones en medias_clase_fam
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data$Age3 <- data$Age
 data <- merge(data, medias_clase_fam, by = c("Pclass", "SibSp", "Parch"), all.x = TRUE)
 data$Age3[is.na(data$Age3)] <- data$Media_clase_fam[is.na(data$Age3)]
@@ -407,7 +410,7 @@ data$Age3[is.na(data$Age3)] <- data$Media_clase_fam[is.na(data$Age3)]
 
 Como es posible que nos hayan quedado alguno sin poder asignar (al no existir la combinación Pclass + sibSp + Parch) a los que faltan (que son 7) les asignamos directamente por la **Pclass** sin tener en cuenta los otros valores
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data$Age3[is.na(data$Age3)&data$Pclass == 1] <- mean(data$Age3[!is.na(data$Age3)&data$Pclass == 1])
 data$Age3[is.na(data$Age3)&data$Pclass == 2] <- mean(data$Age3[!is.na(data$Age3)&data$Pclass == 2])
 data$Age3[is.na(data$Age3)&data$Pclass == 3] <- mean(data$Age3[!is.na(data$Age3)&data$Pclass == 3])
@@ -415,19 +418,20 @@ data$Age3[is.na(data$Age3)&data$Pclass == 3] <- mean(data$Age3[!is.na(data$Age3)
 
 Vemos ahora la distribución que nos queda
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 ggplot(data, aes(Age3)) +
   geom_histogram(aes(y = ..density..), bins=50, fill="steelblue", color="blue") + 
   stat_function(fun = dnorm, args = list(mean = mean(data$Age3), sd = sd(data$Age3)))
 ```
 
-- Caso 4: Imputando datos de **Age**, con MICE (Multivariate Imputation via Chained Equations). En este caso se predicen los valores de **Age**, con el resto de valores observados (usamos para este caso **Pclass**, **SibSp**, **Parch**, **Sex** y **Age**).
+**Caso 4: Imputando datos de **Age**, con MICE (Multivariate Imputation via Chained Equations)**
 
-```{r message= FALSE, warning=FALSE}
+En este caso se predicen los valores de **Age**, con el resto de valores observados (usamos para este caso **Pclass**, **SibSp**, **Parch**, **Sex** y **Age**).
+
+```{r warning=FALSE}
 columnas <- c('Pclass', 'SibSp', 'Parch', 'Sex', 'Age')
 
 mice_imputar <- mice(data = data[, columnas], method = "rf")
-#mice_imputar <-  parlmice(data = data[, columnas], method = "rf", n.core = 8, n.imp.core = 50)
 mice_completo <- mice::complete(mice_imputar)
 data$Age4 <- data$Age
 data$Age4[is.na(data$Age4)]<- mice_completo$Age[is.na(data$Age4)]
@@ -435,7 +439,7 @@ data$Age4[is.na(data$Age4)]<- mice_completo$Age[is.na(data$Age4)]
 
 Tras la imputación observamos la gráfica:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 ggplot(data, aes(Age4)) +
   geom_histogram(aes(y = ..density..), bins=50, fill="steelblue", color="blue") + 
   stat_function(fun = dnorm, args = list(mean = mean(data$Age4), sd = sd(data$Age4)))
@@ -443,7 +447,7 @@ ggplot(data, aes(Age4)) +
 
 Resumiendo el resultado de las 4 opciones de imputación mas la original:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 summary(data$Age)
 summary(data$Age1)
 summary(data$Age2)
@@ -454,7 +458,7 @@ summary(data$Age4)
 Tras ver los resultados nos decantamos por la cuarta opción (Age4), ya que la distribución se parece mucho más a la original.
 Asignamos y limpiamos el dataset:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data$Age <- data$Age4
 data <- select(data, -Age1, -Age2, -Age3, -Age4, -Media_clase_fam)
 ```
@@ -464,7 +468,7 @@ data <- select(data, -Age1, -Age2, -Age3, -Age4, -Media_clase_fam)
 
 Recordamos los valores con ceros del dataset
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 df_status(data)
 ```
 
@@ -475,13 +479,13 @@ Tenemos un alto número de ceros en **SibSp** y **Parch**, pero son valores vál
 
 Viendo nuevamente los resultados con **summary**, hemos eliminado los nulos y tenemos un nuevo valor de media y mediana para **Age**
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 summary(data)
 ```
 
-Y con “df_status” vemos también como nos han quedado los datos después de eliminar variables, y de imputar valores en las variables a los que le faltaban algunos valores. El dataset queda libre de nulos, y con los ceros que hemos aceptado que tiene que mantener y que tienen sentido.
+Y con “df_status” vemos también como nos han quedado los datos después de eliminar variables, y de imputar valores en las variables a los que le faltaban algunos valores. El dataset queda libre de nulos, y con los ceros que hemos aceptado que tiene que mantener y que son valores aceptables.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 df_status(data)
 ```
 
@@ -491,9 +495,9 @@ Se considera un valor extremo, outlier, a un valor fuera de rango. Son valores q
 
 Este análisis solo tiene sentido realizarlo sobre las variables numéricas por lo que vamos a comenzar por separar aquellas variables que son numéricas y verlas en un gráfico bloxplot.
 
-### Gráfico boxplot variables numéricas
+**Gráfico boxplot variables numéricas**
  
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 lista<-sapply(data, is.numeric) 
 data_num<-data[,lista] 
 boxplot(data_num,las=2)
@@ -508,7 +512,7 @@ Analicemos esas tres variables por separado
 
 El boxplot parece indicar que Fare tiene valores extremos. Los identificamos usando el criterio de tres veces la desviación típica:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data_out <- as.data.frame(data$Fare)
 data_out$outlier <- FALSE
 for (i in 1:ncol(data_out) - 1){
@@ -524,7 +528,7 @@ table(data_out$outlier)
 
 Con este criterio tenemos identificados 20 posibles *outliers*, observando mas detenidamente los valores que nos indica boxplot.stats y teniendo en cuenta que el máximo es 512, no parecen exagerados:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 boxplot.stats(data$Fare)$out
 ```
 
@@ -534,7 +538,7 @@ Por todo esto, decidimos no realizar ninguna acción con estos *outliers* ya que
 
 **Gráfico outlier Fare**
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 boxplot(data$Fare~data$Pclass,xlab="Pclass",ylab="Fare",
         col=c("blue","yellow","red"))
 ```
@@ -543,7 +547,7 @@ boxplot(data$Fare~data$Pclass,xlab="Pclass",ylab="Fare",
 
 Hacemos un análisis similar al realizado con  Fare:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data_out <- as.data.frame(data$Price)
 data_out$outlier <- FALSE
 for (i in 1:ncol(data_out) - 1){
@@ -559,7 +563,7 @@ table(data_out$outlier)
 
 De nuevo con boxplot.stats analizamos los outliers, el valor máximo 221:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 boxplot.stats(data$Price)$out
 ```
 
@@ -567,7 +571,7 @@ Y al igual que con **Fare**, los valores más altos en las clases altas:
 
 **Gráfico boxplot Price**
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 boxplot(data$Price~data$Pclass,xlab="Pclass",ylab="Price",col=c("blue","yellow","red"))
 ```
 
@@ -577,7 +581,7 @@ Al igual que con **Fare** optamos por considerarlos valores válidos y no realiz
 
 De nuevo realizamos el mismo procedimiento que con las otras dos variables
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data_out <- as.data.frame(data$Age)
 data_out$outlier <- FALSE
 for (i in 1:ncol(data_out) - 1){
@@ -594,7 +598,7 @@ table(data_out$outlier)
 y el resultado de boxplot.stats
 
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 boxplot.stats(data$Age)$out
 ```
 
@@ -612,7 +616,7 @@ Podemos definir diferentes agrupaciones que usaremos más adelante para estudiar
 
 Vamos a definir una variable Child para aquellos registros en los que la edad sea menor que 8
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 edad_corte = 8
 data$Child[data$Age <= edad_corte] <- 1
 data$Child[data$Age > edad_corte] <- 0
@@ -623,7 +627,7 @@ data$Child <- as.factor((data$Child))
 
 Agrupamos por el género, creando una variable para cada uno de los géneros
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 Mujeres <- data[which(data$Sex == 'female'),]
 Hombres <- data[which(data$Sex == 'male'),]
 ```
@@ -632,7 +636,7 @@ Hombres <- data[which(data$Sex == 'male'),]
 
 Agrupamos por el lugar de embarque creando una variable por cada uno de los lugares
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 EmbarqueC <- data[which(data$Embarked == 'C'),]
 EmbarqueQ <- data[which(data$Embarked == 'Q'),]
 EmbarqueS <- data[which(data$Embarked == 'S'),]
@@ -640,9 +644,10 @@ EmbarqueS <- data[which(data$Embarked == 'S'),]
 ```
 
 ### Clase
+
 Agrupamos por clase
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 FirstClass <- data[which(data$Pclass == 1),]
 SecondClass <- data[which(data$Pclass == 2),]
 ThirdClass <- data[which(data$Pclass == 3),]
@@ -652,10 +657,8 @@ ThirdClass <- data[which(data$Pclass == 3),]
 
 Vamos a discretizar los valores por grupos de edades, añadiendo una columna al dataset (AgeInterval)
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 data["AgeInterval"] <- cut(data$Age, breaks = c(0,13,18,40,55, 100), labels = c("0-12", "13-17", "18-39","40-54", "55-100"))
-#intervalos_edad <- c(0,13,18,40,55)
-#data$AgeInterval <- findInterval(data$Age, intervalos_edad)
 data$AgeInterval <- as.factor(data$AgeInterval)
 table(data$AgeInterval)
 plot(data$AgeInterval)
@@ -673,7 +676,7 @@ Para poder tener más seguridad, vamos a aplicar otros dos métodos, la prueba d
 
 Creamos un data frame para resumir los tests:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 tabla.normalidad <- data.frame('variable' = character(),
                                'Test de Normalidad' = character(),
                                'Valor Estadístico' = numeric(),
@@ -684,22 +687,26 @@ str(tabla.normalidad)
 
 Ahora recorremos todas las variables continuas aplicando los tres tests y añadiéndolos al dataframe:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 var.continuas <-c("Age", "Fare", "Price")
 
 for (i in 1:length(var.continuas)){
   variable = var.continuas[i]
   #Test Shapiro-wil
   test = shapiro.test(data[,variable])
-  tabla.normalidad[nrow(tabla.normalidad)+1,] = c(variable, test$method, test$statistic, test$p.value)
+  tabla.normalidad[nrow(tabla.normalidad)+1,] = c(variable, test$method, 
+                                                  test$statistic, test$p.value)
   
   #Test Anderson-Darling
   test = ad.test(data[,variable])
-  tabla.normalidad[nrow(tabla.normalidad)+1,] = c(variable, test$method, test$statistic, test$p.value)
+  tabla.normalidad[nrow(tabla.normalidad)+1,] = c(variable, test$method, 
+                                                  test$statistic, test$p.value)
   
   #Test Kolmogorov-Smirnov
-  test = ks.test(data[,variable], "pnorm", mean=mean(data[,variable]), sd=sd(data[,variable]))
-  tabla.normalidad[nrow(tabla.normalidad)+1,] = c(variable, test$method, test$statistic, test$p.value)
+  test = ks.test(data[,variable], "pnorm", mean=mean(data[,variable]), 
+                 sd=sd(data[,variable]))
+  tabla.normalidad[nrow(tabla.normalidad)+1,] = c(variable, test$method, 
+                                                  test$statistic, test$p.value)
 }
 
 knitr::kable(tabla.normalidad)
@@ -710,13 +717,14 @@ por tanto se han rechazado la hipótesis nula (que la variable sigue una distrib
 
 No obstante, vamos a revisar gráficamente la distribución de cada una de las variables usando su histograma, curva de densidad y gráficas Q-Q
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, message = FALSE,  echo=FALSE}
 for (i in 1:length(var.continuas)) {
   variable=var.continuas[i]
   #Histograma
   print(ggplot(data, aes(data[,variable])) + 
           geom_histogram(aes(y = ..density..), bins=50, fill="steelblue", color="blue") + xlab(variable) +
           stat_function(fun = dnorm, args = list(mean = mean(data[,variable]), sd = sd(data[,variable]))))
+  
   #Gráfica Q-Q
   qqnorm(data[,variable], main=paste0('Normal Q-Q Plot ', '(Variable "', variable,'")'))
   qqline(data[,variable], col=2)
@@ -742,15 +750,14 @@ La variable **Age** está próxima a una distribución normal por lo cual podemo
 
 Primero analizamos si las varianzas son iguales cuando comprobamos **Age** y el grupo es **Survived**, es decir estamos comprobando la homogeneidad de varianzas de la edad en los grupos de supervivientes y no supervivientes.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 leveneTest(data = data, Age ~ Survived, center = mean)
 ```
 En este caso el p-value es superior a 0.05 y por tanto asumimos que hay **homogeneidad de varianzas** entre los grupos
 
 **Representación muestras forma gráfica**
 
-```{r message= FALSE, warning=FALSE}
-
+```{r warning=FALSE, message=FALSE,  echo=FALSE}
 colores_defecto_ggplot = (hue_pal()(2))
 ggplot(data, aes(x = Survived, y = Age)) +
   geom_jitter(aes(color=Survived), position = position_jitter(0.05)) +
@@ -764,17 +771,18 @@ fligner.test(Age ~ Survived, data=data)
 
 Ahora Comprobamos también cómo se comportan las varianzas cuando se trata de la variable edad **Age** con **Embarked**.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 leveneTest(data = data, Age ~ Embarked, center = mean)
 ```
 
 En este caso hay **homogeneidad de varianzas** de **Age** en los grupos que define la variable **Embarked**
 
 ##### Age con Pclass
+
 Ahora Comprobamos también cómo se comportan las varianzas cuando se trata de la variable edad **Age** con **Pclass**.
 En este caso vamos a aplicar tanto el test de *Levene* como el de *Fligner-Killeen*:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 leveneTest(data = data, Age ~ Pclass, center = mean)
 fligner.test(Age ~ Pclass, data = data)
 ```
@@ -786,7 +794,7 @@ En los dos tests (paramétrico y no paramétrico), se rechaza la hipótesis nula
 Para concluir con el atributo **Age** realizamos tambien el análisis con respecto a **Sex**.
 De nuevo aplicamos *Levene* y *Fligner-Killen*
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 leveneTest(data = data, Age ~ Sex, center = mean)
 fligner.test(Age ~ Sex, data = data)
 ```
@@ -809,7 +817,7 @@ Resumimos en una tabla los resultados de homogeneidad de la varianza de Age con 
 Hacemos el mismo estudio con la variable **Fare** pero ahora usaremos *Fligner*.
 Mostramos los test con **Sex**, **Survived**, **Embarked**, **Pclass**
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 fligner.test(Fare ~ Sex, data = data)
 fligner.test(Fare ~ Survived, data = data)
 fligner.test(Fare ~ Embarked, data = data)
@@ -834,7 +842,7 @@ Ya vimos que **Age** no sigue exactamente una distribución normal, pero si cons
 Para ejecutar la prueba *t de Student*, disponemos en R del comando "t.test". Este mismo comando nos permite realizar el test de *Welch* cuando las varianzas entre las muestras son diferentes. 
 Comprobemos que la variable **Age** sigue una distribución normal primero aplicando el *F-test* mediante el comando var.test
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 var.test(Mujeres$Age, Hombres$Age)
 ```
 
@@ -842,7 +850,7 @@ El resultado nos indica que las varianzas de edad en los grupos de mujeres y hom
 
 Aplicamos ahora un test para comparar las medias de los 2 grupos, la hipótesis nula será que no hay diferencias significativas entre la media de edades para hombres y mujeres. Podemos usar el *t-Test* indicando que las varianzas de los grupos son iguales (por el resultado anterior).
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 t.test(Mujeres$Age, Hombres$Age, var.equal = TRUE)
 ```
 
@@ -850,7 +858,7 @@ El valor de p-values es inferior a 0.05, por lo que rechazamos la hipótesis nul
 
 Establecemos una nueva hipótesis alternativa: que la media de edad de las mujeres es menor que la de los hombres. Por lo tanto, la hipótesis nula corresponde a que la edad de las mujeres es mayor o igual a la de los hombres:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 t.test(Mujeres$Age, Hombres$Age, alternative = "less", var.equal = TRUE)
 ```
 Con un p-value menor de 0.5 volvemos a rechazar la hipótesis nula, es decir, podemos afirmar que la media de edad de las mujeres del Titanic es inferior a la media de edad de los hombres a bordo.
@@ -859,7 +867,7 @@ Con un p-value menor de 0.5 volvemos a rechazar la hipótesis nula, es decir, po
 
 Si hacemos una inspección visual de la relación entre las dos variables:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, echo=FALSE}
 ggplot(data,aes(x=Sex,fill=Survived))+geom_bar()
 ```
 
@@ -869,7 +877,7 @@ Vamos a confirmar esto realizando algunos contrastes de hipótesis.
 Primero, vamos a comprobar la relación entre la supervivencia y el género, analizando si el género fue un factor importante a la hora de la supervivencia, o dicho de otro modo, si dependiendo de si se era mujer u hombre las posibilidades de supervivencia cambiaban significativamente.
 Para hacerlo aplicamos el *test exacto de Fisher* que analiza tablas de contingencia. En este caso la hipótesis nula es que la proporción de mujeres que mueren coincide con la proporción de hombre que mueren en el accidente del Titanic.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 fisher.test(table(data$Sex, data$Survived))
 ```
 
@@ -877,7 +885,7 @@ El resultado no deja lugar a dudas con un p-valor < 0.05 rechazamos la hipótesi
 
 Una vez confirmado que el género si que es importante a ala hora de las probabilidades de supervivencia, vamos a ver quien tiene más probabilidades de supervivencia, si las mujeres o los hombres. Para ello añadimos una condición a la hipótesis alternativa, usamos “less” para indicar (en la hipótesis nula) que el primer grupo (en este caso las mujeres ya que en orden alfabético es female y male) tiene menor proporción (probabilidad) si se rechaza la hipótesis nula. Es decir, la hipótesis nula dice que “la proporción de mujeres que mueren es mayor que la de los hombres”.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 fisher.test(table(data$Sex, data$Survived), alternative = 'less')
 ```
 
@@ -885,13 +893,13 @@ De nuevo rechazamos la hipótesis nula (p-value inferior a 0.05) con lo que se c
 
 Si tenemos en cuenta que la tabla de contingencia que estamos evaluando es la siguiente:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 table(data$Sex, data$Survived)
 ```
 
 El odd ratio de la tabla de contigencia lo calculamos así:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 tab.contigencia = table(data$Sex, data$Survived)
 odd_ratio = (tab.contigencia[1,1] / tab.contigencia[1,2]) /
   (tab.contigencia[2,1] / tab.contigencia[2,2])
@@ -902,7 +910,7 @@ Como vimos antes en el test de Fisher, la hipótesis alternativa se hace verdade
 
 Podemos obtener intervalos de confianza, por ejemplo, al 99% de que la media de las edades de diferentes muestras, van a estar entre los valores 28.8 y 31.26 de media de edad.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 test = t.test(data$Age, conf.level = 0.99)
 test$conf.int
 ```
@@ -911,7 +919,7 @@ test$conf.int
 
 De nuevo hacemos una primera inspección visual
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 ggplot(data,aes(x=Pclass,fill=Survived))+geom_bar()
 ```
 
@@ -919,7 +927,7 @@ En el gráfico se aprecia claramente que el porcentaje de supervivencia por clas
 
 Para realizar el análisis numéricamente, al ser dos variables categóricas vamos a aplicar por ejemplo el test *Chi-Cuadrado*. Aquí la hipótesis nula nos dice que las variables son independientes. Vamos a comprobarlo:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 test_chisq <- chisq.test(data$Pclass, data$Survived)
 test_chisq
 ```
@@ -928,7 +936,7 @@ El p-value obtenido es inferior a 0.05, es decir, rechazamos la hipótesis nula,
 
 También se puede observar el valor de df que son los grados de libertad, que lo podemos obtener a través de la tabla de contingencias y el estadístico de contraste. Si el estadístico de contraste obtenido supera el valor crítico entonces se rechaza la hipótesis nula.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 df_chisq <- (length(levels(data$Pclass)) -1 ) * (length(levels(data$Survived)) - 1)
 valorcritico_chisq <- qchisq(p=0.05, df = df_chisq, lower.tail = FALSE)
 cat(sprintf("El estadístico obtenido es: %f y el valor crítico es: %f", test_chisq$statistic, valorcritico_chisq))
@@ -938,22 +946,22 @@ cat(sprintf("El estadístico obtenido es: %f y el valor crítico es: %f", test_c
 
 Realizamos el mismo análisis
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 ggplot(data,aes(x=Embarked,fill=Survived))+geom_bar()
 ```
 
 El gráfico parece indicar que los embarcados en Southampton tenían menos posibilidades de sobrevivir. Puede ser que esté relacionado con la *Pclass* de cada lugar de embarque:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 ggplot(data,aes(x=Pclass,fill=Survived))+geom_bar()+facet_wrap(~Embarked)
 ```
-Este nos confirma los embarcados en S eran mayoritariamente de clase 3 por lo que tiene sentido que su ratio de supervivencia sea menor.
+Este nos confirma los embarcados en *S* eran mayoritariamente de clase 3 por lo que tiene sentido que su ratio de supervivencia sea menor.
 
 Vemos ahora el análisis con contrastes de hipótesis.
 
 Primero analizamos si hay relación entre las variables **Embarked** y **Survived** usando de nuevo la *Chi-Squared*
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 test_chisq <- chisq.test(data$Embarked, data$Survived)
 test_chisq
 df_chisq <- (length(levels(data$Embarked)) -1 ) * (length(levels(data$Survived)) - 1)
@@ -961,7 +969,7 @@ valorcritico_chisq <- qchisq(p=0.05, df = df_chisq, lower.tail = FALSE)
 cat(sprintf("El estadístico obtenido es: %f y el valor crítico es: %f", test_chisq$statistic, valorcritico_chisq))
 ```
 
-De nuevo se rechaza la hipótesis nula, por lo tanto las variables son dependientes.
+De nuevo se rechaza la hipótesis nula, por lo tanto **las variables son dependientes**.
 
 #### Survived y Child 
 
@@ -969,26 +977,26 @@ Analizamos ahora la nueva variable creada **Child** que corresponde a los niños
 
 De nuevo un análisis visual primero:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 ggplot(data,aes(x=Child,fill=Survived))+geom_bar(position ='fill')
 ```
-Parece que si que hay mas esperanza de supervivencia en ese caso.
+Parece que si que hay más esperanza de supervivencia en ese caso.
 
 Aplicamos el *test de Fisher* para comprobar si tienen las mismas probabilidades de supervivencia que el resto de pasajeros. 
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 fisher.test(table(data$Child, data$Survived))
 ```
 
-Se rechaza la hipótesis nula, es decir que las proporciones no coinciden. 
-Analizamos ahora si las probabilidades de supervivencia son mayores o menores. Para ello analizamos si la proporción de no-niños que no sobreviven es menor a la proporoción de niños que no sobreviven:
+Se rechaza la hipótesis nula, es decir que **las proporciones no coinciden**. 
+Analizamos ahora si las probabilidades de supervivencia son mayores o menores. Para ello analizamos si la proporción de no-niños que no sobreviven es menor a la proporción de niños que no sobreviven:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 fisher.test(table(data$Child, data$Survived), alternative = 'greater')
 ```
 Se rechaza la hipótesis nula, y se acepta la alternativa, es decir que la **probabilidad de muerte de los no-niños es mayor que la de los niños**.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 tab.contigencia = table(data$Child, data$Survived)
 tab.contigencia
 odd_ratio = (tab.contigencia[1,1] / tab.contigencia[1,2]) /
@@ -999,15 +1007,15 @@ odd_ratio
 #### Survived y Age
 
 Vamos a analizar ahora si la media de edad de las personas que murieron es coincidente con la media de edad que sobrevivieron.
-Aplicamos el test t-Test
+Aplicamos el test *t-Test*
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 t.test(data$Age[which(data$Survived==0)], data$Age[which(data$Survived == 1)])
 ```
 
 Se observa que el p-valor es inferior a 0.05, con lo que rechazamos la hipótesis nula (que las medias de edad son coincidentes para fallecidos y supervivientes), pero como ya sabíamos, la distribución de **Age** no sigue exactamente una normal, por lo que vamos a aplicar el *test no paramétrico U de Mann-Whitney*
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 wilcox.test(x = data$Age[which(data$Survived==0)],
             y = data$Age[which(data$Survived==1)],
             paired =FALSE
@@ -1018,7 +1026,7 @@ La prueba no-paramétrica nos devuelve un p-value por encima de 0.05 y por tanto
 
 Gráficamente podemos comprobarlo mediante un Boxplot
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 colores_defecto_ggplot = (hue_pal()(2))
 ggplot(data, aes(x=Survived, y=Age)) +
   scale_x_discrete(name = "Survived", labels = c("0"="no", "1"="Yes")) +
@@ -1033,7 +1041,7 @@ Se ve claramente que las distribuciones son muy parecidas.
 
 Para analizar si **Age** es independiente del puerto de embarque **Embarked** , podemos realizar un test Anova, donde la hipótesis nula nos dice que la media de la edad es independiente del puerto de embarque, es decir que la media de edad de la gente que subió en “C” (Cherbourg), coincide con la media de los que embarcaron en “Q” (Queenstown) y también con los que embarcaron en “S” (Southampton). Y por el contrario la hipótesis nula es que alguna de las medias es diferente. 
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 modelo_anova <- aov(formula = Age ~ Embarked, data =data )
 resumen_anova <- summary(modelo_anova)
 resumen_anova
@@ -1058,8 +1066,9 @@ inferior (213.6). El valor del cociente es 0.956, es decir el estadístico F.
 
 Revisamos los distintos gráficos que nos proporciona anova
 
-- Gráfico Residuals vs Fitted
-```{r message= FALSE, warning=FALSE}
+**Gráfico Residuals vs Fitted**
+
+```{r warning=FALSE,  echo=FALSE}
 plot(modelo_anova, 1)
 ```
 
@@ -1067,25 +1076,25 @@ Esta gráfica nos muestra si los residuos tienen patrones no lineales. Puede exi
 
 En nuestro caso concreto, se ve una línea casi horizontal (hay una mini curva) y los residuos se distribuyen alrededor de dicha línea. Podemos decir que no hay indicios de relaciones no lineales.
 
-- Gráfico Normal Q-Q
+**Gráfico Normal Q-Q**
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 plot(modelo_anova, 2)
 ```
 
 Si no nos ponemos muy estrictos en la exigencia, con el gráfico *Normal Q-Q* podemos ver que la variable dependiente sigue una distribución aproximadamente normal. La mayoría de los puntos se encuentran alineados en la línea de puntos y solamente es en los extremos donde esa situación no se cumple.
 
-- Gráfica Scale-Location:
+**Gráfica Scale-Location**
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 plot(modelo_anova, 3)
 ```
 
 La gráfica *Scale-Location* también es conocida con el nombre de gráfica *Spread-Location*. Aquí vemos si los residuos se reparten de forma equitativa.En nuestro ejemplo, vemos casi una recta horizontal y los puntos se distribuyen de forma muy similar a los lados de la línea y en los extremos también parece un gráfico simétrico (tanto en horizontal como en vertical). Es decir que el gráfico nos está indicando que se cumple la homocedasticidad en nuestro modelo.
 
-- Gráfica Residuals vs Leverage
+**Gráfica Residuals vs Leverage**
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 plot(modelo_anova, 5)
 ```
 
@@ -1093,18 +1102,18 @@ Esta gráfica sirve para ayudarnos a encontrar casos influyentes (es decir, suje
 
 Tenemos que buscar casos que estén fuera de una línea discontinua (que es la distancia de Cook). Cuando encontremos casos fuera de la distancia de Cook (es decir que tienen puntuación alta de distancia de Cook) se consideran casos influyentes en los resultados de la regresión. Y esa regresión se verá afectada si excluimos esos casos.
 
-- Grafica Distancia de Cook
+**Grafica Distancia de Cook**
 
 Otra forma de mostrar la distancia de Cook es usando el gráfico que proporciona Anova
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 plot(modelo_anova, 4)
 ```
 
 Después de este análisis y dando por aceptadas las condiciones del cumplimiento de Anova, podemos afirmar que **las medias de edad en los diferentes puertos de Embarke es coincidente**.
 Y de hecho, si vemos el Boxplot de la variable **Age** en función de la variable **Embarked**:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo=FALSE}
 ggplot(data, aes(x=Embarked, y=Age)) +
   geom_boxplot(fill=(hue_pal()(3))) +
   ggtitle("Boxplot Age (by Embarked)")
@@ -1114,21 +1123,22 @@ ggplot(data, aes(x=Embarked, y=Age)) +
 
 Intentamos realizar Anova con estas dos variables, usando como hipótesis nula que el precio medio pagado es igual para cada una de las 3 clases
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 modelo_anova <- aov(formula = Price ~ Pclass, data =data )
 resumen_anova <- summary(modelo_anova)
 resumen_anova
 ```
 Si mostramos los gráficos:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, echo=FALSE}
 plot(modelo_anova)
 ```
 
 Observamos que no se cumplen las condiciones para aplicar Anova y el test no tiene valor.
+
 Vamos a intentar usar un test no paramétrico, *Kruskal Wallis*
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 modelo_kruskal <- kruskal.test(formula = Price ~ Pclass, data =data )
 modelo_kruskal
 ```
@@ -1138,7 +1148,7 @@ lo cual era el resultado esperado.
 
 Lo podemos comprobar también visualmente con el boxplot relativo a ello:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, echo=FALSE}
 ggplot(data, aes(x=Pclass, y=Price)) +
   geom_boxplot(fill=(hue_pal()(3))) +
   ggtitle("Boxplot Price (by Pclass)")
@@ -1146,20 +1156,24 @@ ggplot(data, aes(x=Pclass, y=Price)) +
 
 ### Modelos
 
-Vamos a aplicar diversos modelos predictivos de la variable Survived.
+Vamos a aplicar diversos modelos predictivos de la variable **Survived**.
 
 Vamos a utilizar como variables explicativas las variables que traía por defecto el conjunto de datos original (menos las que hemos eliminado en el proceso de transformación y limpieza de datos ya comentado).
 
 Creamos un conjunto de entrenamiento y un conjunto de test. Es decir,vamos a realizar una partición, un 75% de datos para el entrenamiento, y el 25% restante para validar los modelos.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 set.seed(123)
 
 split = sample.split(data$Survived, SplitRatio = 0.75)
 data_train = subset(data, split == TRUE)
 data_test = subset(data, split == FALSE)
 
+```
 
+Creamos una función que nos imprima la matriz de confusión  
+
+```{r warning=FALSE}
 # Función necesaria para imprimir la matriz de confusión a partir de un CrossTable
 plot_matriz_confusion <- function(par_crosstable) {
   #Obtenemos la matriz de confusion en porcentaje
@@ -1207,16 +1221,27 @@ plot_matriz_confusion <- function(par_crosstable) {
 }
 ```
 
+Creamos un dataframe que ira guardando los distintos valores de precisión y errores de clasificación
+
+```{r}
+
+tabla.modelos <- data.frame('Modelo' = character(),
+                               'Precisión' = numeric(),
+                               'Errores' = numeric(),
+                               stringsAsFactors = FALSE) 
+
+str(tabla.modelos)
+```
 
 #### Modelo de regresión logística
 
 Un modelo de regresión logística es un tipo de análisis de regresión que se utiliza para predecir el resultado de una variable categórica, en función de las variables independientes. En nuestro caso, la variable objetivo **Survived** es una variable categórica binaria, es decir que tomar valor de 0 o 1 (verdadero o falso). La variable toma el valor 1 cuando el pasajero ha sobrevivido al accidente, y 0 en caso contrario.
 
-- Primer modelo glm
+##### Primer modelo glm
 
 Creamos un primer modelo glm1 con las variables "original": **Pclass**, **SibSp**, **Parch**, **Sex**, **Age**, **Fare** y **Embarked**
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 modelo_glm1 <- glm(formula=Survived~ Pclass+SibSp+Parch+Sex+Age+Fare+Embarked, data = data_train, family = binomial(link = "logit"))
 summary(modelo_glm1)
 ```
@@ -1225,9 +1250,10 @@ Se puede observar en este modelo que tanto las variables **Fare** como **Parch**
 
 Además, podemos comprobar el “sentido” de la significación. Por ejemplo, vemos como significativa la variable dummy. Con las variables categóricas se crean automáticamente tantas variables dummy como niveles – 1. En el caso de la variable Sex, al tener 2 valores ha creado la variable **Sexmale**, es decir la parte correspondiente a hombres, mientras que la parte de mujeres forma parte del Intercept del modelo. Concretamente vemos que **Sexmale** es una variable significativa, pero con valor negativo (de las más negativas junto con **Pclass3**). Eso significa que esas variables son una influencia “negativa” de cara a la supervivencia. Es decir, esas variables contribuyen negativamente a la supervivencia, se puede ver por ejemplo que **Pclass3** afecta más negativamente que **Pclass2**.
 
-Ahora usamos el conjunto de datos de test para validar nuestro modelo
+Ahora usamos el conjunto de datos de test para validar nuestro modelo.
+(Para este primer modelo mostramos el código como ejemplo)
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 predict_glm1 <- predict(object=modelo_glm1, newdata=data_test, type = "response")
 r1 <- pROC::roc(response=data_test$Survived, predictor = predict_glm1)
 threshold_r1 <- pROC::coords(r1, "best", ret = "threshold", transpose="FALSE")
@@ -1242,20 +1268,23 @@ csstab_glm1 <- CrossTable(data_test$Survived, predict_glm1,
                           prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
                           dnn = c('Reality', 'Prediction'))
 
+plot_matriz_confusion(csstab_glm1)
+tabla.modelos[nrow(tabla.modelos)+1,] = c("glm1", pct.correcto_glm1, sum(mat.confusion_glm1)-sum(diag(mat.confusion_glm1)))
+
 ```
 
-- Segundo modelo glm
+##### Segundo modelo glm
 
 Construimos otro modelo (glm2), similar al anterior pero esta vez partiendo de los resultados del modelo anterior, le vamos a quitar aquellas variables que vimos que no eran significativas para el modelo de predicción. Por lo tanto, tendremos un modelo2 cuyas variables a utilizar serán **Pclass**, **SibSp**, **Sex** y **Age**.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 modelo_glm2 <- glm(formula=Survived~ Pclass+SibSp+Sex+Age, data = data_train, family = binomial(link = "logit"))
 summary(modelo_glm2)
 ```
 
 Se comprueba que todas las variables utilizadas son variables significativas para el modelo. Además, el modelo parece haber mejorado un poco en cuanto a la predicción:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, echo=FALSE}
 predict_glm2 <- predict.glm(object=modelo_glm2, newdata=data_test, type = "response")
 r2 = pROC::roc(response=data_test$Survived, predictor = predict_glm2)
 threshold_r2 <- coords(r2, "best", ret = "threshold")
@@ -1269,20 +1298,22 @@ csstab_glm2 <- CrossTable(data_test$Survived, predict_glm2,
                           prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
                           dnn = c('Reality', 'Prediction'))
 
+plot_matriz_confusion(csstab_glm2)
+tabla.modelos[nrow(tabla.modelos)+1,] = c("glm2", pct.correcto_glm2, sum(mat.confusion_glm2)-sum(diag(mat.confusion_glm2)))
 ```
 
-- Tercer modelo glm
+##### Tercer modelo glm
 
 Hasta ahora se han utilizado las variables del conjunto de datos “original”. Vamos a construir otro modelo (glm3), pero esta vez vamos a intentar utilizar alguna de las variables que hemos construido para ayudar a predecir la supervivencia. Para este caso vamos a utilizar las variables nuevas **Child** y también **FamilySize**. Además de esas dos variables, vamos a utilizar otras tres variables originales: **Pclass**, **Sex** y **Age**.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 modelo_glm3 <- glm(formula=Survived~ Sex+Pclass+Age+Child+FamilySize,, data = data_train, family = binomial(link = "logit"))
 summary(modelo_glm3)
 ```
 
 Al igual que pasaba en el modelo2, todas las variables utilizadas han resultado significativas, y además el AIC del modelo ha mejorado ligeramente. Además la capacidad predictiva del modelo ha aumentado un poco:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, echo=FALSE}
 predict_glm3 <- predict.glm(object=modelo_glm3, newdata=data_test, type = "response")
 r3 = pROC::roc(response=data_test$Survived, predictor = predict_glm3)
 threshold_r3 <- coords(r3, "best", ret = "threshold")
@@ -1296,32 +1327,35 @@ print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",
 csstab_glm3 <- CrossTable(data_test$Survived, predict_glm3,
                           prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
                           dnn = c('Reality', 'Prediction'))
+
+plot_matriz_confusion(csstab_glm3)
+tabla.modelos[nrow(tabla.modelos)+1,] = c("glm3", pct.correcto_glm3, sum(mat.confusion_glm3)-sum(diag(mat.confusion_glm3)))
 ```
 
-- Cuarto modelo glm
+##### Cuarto modelo glm
 
 Antes de construir un cuarto modelo, vamos a analizar si existen variables independientes que afecten a la variable dependiente.
 Para ello primero definimos una variable 'objetivo' pero numérica
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data$SurvivedNum <- as.integer(as.character(data$Survived))
 ```
 
 Agrupamos el dataset por las variables Sex y Pclass
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data.agrup <- data %>% group_by(Sex, Pclass)
 ```
 
 Calculamos la media creando un campo 'Mean_survived' de la media
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 data.mediasurvived <- summarize(.data = data.agrup, Mean_Survived = mean(SurvivedNum))
 kable(data.mediasurvived)
 ```
 
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, echo=FALSE}
 plot1 <- ggplot(data = data.mediasurvived, aes(x=Pclass, y = Mean_Survived, group = Sex)) +
   geom_line(aes(color=Sex), size=1) +
   geom_point(aes(color = Sex, shape=Sex), size=2)+
@@ -1340,7 +1374,7 @@ Tanto la variable **Sex** como la variable **Pclass** producen efecto en la vari
 
 Agrupamos el dataset por las variables **AgeInterval** y **Sex** y realizamos el mismo proceso
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, echo=FALSE}
 data.agrup <- data %>% group_by(AgeInterval, Sex)
 
 data.mediasurvived <- summarize(.data = data.agrup, Mean_Survived = mean(SurvivedNum))
@@ -1364,7 +1398,7 @@ En este caso llama la atención el impacto de cuando pasamos el primer intervalo
 
 Ahora construimos nuestro cuarto modelo de regresión logística. Utilizaremos algunas variables ya usadas en otros modelos más **AgeInterval**:**Sex**. También hemos añadido la interacción que generan **Sex**:**Pclass**. A estas variables le sumamos también las variables independientes **Sex**, **Parch** y **SibSp**.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, echo= FALSE}
 modelo_glm4 <- glm(formula=Survived~Sex+Parch+SibSp+AgeInterval:Sex+Sex:Pclass, data = data_train, family = binomial(link = "logit"))
 summary(modelo_glm4)
 
@@ -1381,13 +1415,23 @@ print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",
 csstab_glm4 <- CrossTable(data_test$Survived, predict_glm4,
                           prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
                           dnn = c('Reality', 'Prediction'))
+
+plot_matriz_confusion(csstab_glm4)
+tabla.modelos[nrow(tabla.modelos)+1,] = c("glm4", pct.correcto_glm4, sum(mat.confusion_glm4)-sum(diag(mat.confusion_glm4)))
 ```
 
 ##### Resumen modelos regresion
 
+
+Los diferentes modelos se han comportado de la siguiente forma:
+
+```{r}
+knitr::kable(tabla.modelos)
+```
+
 **Curvas ROC**
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, message=FALSE}
 r1$auc
 r2$auc
 r3$auc
@@ -1395,12 +1439,24 @@ r4$auc
 
 data$SurvivedNum <- NULL
 ```
-
+```{r}
+plot.roc(r1)
+plot.roc(r2)
+plot.roc(r3)
+plot.roc(r4)
+```
+TODO: Pintarlas en el mismo gráfico y hacer una explicación
 TODO: ¿Explicación breve de las curvas?
 
 #### Árboles de decisión
 
-```{r}
+Los árboles de decisión son modelos muy sencillos de construir.
+
+##### Primer árbol de decisión
+
+Creamos un primer árbol con los parámetros básicos
+
+```{r warning=FALSE}
 
 tctrl <- caret::trainControl(method = "repeatedcv",
                              number=10, repeats = 3)
@@ -1413,13 +1469,13 @@ summary(model_tree1)
 
 Dibujamos el árbol
 
-```{r}
+```{r warning=FALSE}
 rpart.plot(model_tree1$finalModel)
 ```
 
 Realizamos la predicción con el modelo construido con rpart y el dataset test
 
-```{r}
+```{r warning=FALSE, echo=FALSE}
 
 predict_tree1 <-predict(model_tree1, data_test)
 
@@ -1429,13 +1485,20 @@ mat.confusion_tree1
 pct.correcto_tree1 <- 100 * sum(diag(mat.confusion_tree1)) / sum(mat.confusion_tree1)
 
 print(sprintf("El %% de registros correctamente clasificados es: %.4f %%", pct.correcto_tree1))
+
 csstab_tree1 <- CrossTable(data_test$Survived, predict_tree1,
                            prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
                            dnn = c('Reality', 'Prediction'))
+
 plot_matriz_confusion(csstab_tree1)
+tabla.modelos[nrow(tabla.modelos)+1,] = c("Decision Tree 1", pct.correcto_tree1, sum(confusion_tree1)-sum(diag(mat.confusion_tree1)))
 ```
 
-#### Arboles train
+
+##### Segundo árbol de decisión
+
+Manteniendo las mismas variables predictivas, pero cambiando un parámetro en el modelo (concretamente maxdepth, que es la profundidad máxima del árbol) este puede llegar a mejorar los resultados obtenidos:
+
 
 ```{r warning=FALSE}
 
@@ -1455,13 +1518,13 @@ rpart.plot(model_tree2$finalModel)
 ```
 
 
-```{r, message= FALSE, warning=FALSE,}
+```{r, message= FALSE, warning=FALSE, echo=FALSE}
 summary(model_tree2)
 ```
 
 Realizamos la predicción con el modelo construido con rpart y el dataset test
 
-```{r}
+```{r warning=FALSE, echo=FALSE}
 predict_tree2 <-predict(model_tree2, data_test)
 mat.confusion_tree2 <- table(data_test$Survived, predict_tree2)
 mat.confusion_tree2
@@ -1470,11 +1533,13 @@ print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",
               pct.correcto_tree2))
 print(paste0("El mejor parámetro para el árbol de clasificación ha sido: ",
              names(model_tree2$bestTune),"=", model_tree2$bestTune))
+
+tabla.modelos[nrow(tabla.modelos)+1,] = c("Decision Tree 2", pct.correcto_tree2, sum(confusion_tree2)-sum(diag(mat.confusion_tree2)))
 ```
 
 **Matriz de confusión**
 
-```{r}
+```{r warning=FALSE}
 csstab_tree2 <- CrossTable(data_test$Survived, predict_tree2,
                            prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
                            dnn = c('Reality', 'Prediction'))
@@ -1482,7 +1547,7 @@ plot_matriz_confusion(csstab_tree2)
 ```
 
 **Importancia de las variables**
-```{r}
+```{r warning=FALSE}
 
 datosVarImp <- varImp(model_tree2)$importance %>% 
   as.data.frame() %>%
@@ -1497,7 +1562,9 @@ ggplot(datosVarImp)+
 
 #### Random Forest
 
-```{r message= FALSE, warning=FALSE}
+Utilizaremos ahora Random Forest, que consiste en una combinación de árboles predictores. Cada árbol utiliza muestras con reemplazo del conjunto de datos que se le pasa al modelo. Cada árbol utiliza valores diferentes de variables, para de esa forma dar también opciones a algunas variables que podrían quedar eclipsadas por otras con más relevancia. Y de ahí que luego se pueda obtener la importancia relativa de cada variable (el clasificador altera la variable y mide el impacto). El uso de esta técnica nos va a permitir tener, respecto a los árboles de clasificación, un sistema más estable.
+
+```{r warning=FALSE}
 
 tctrl <- caret::trainControl(method = "repeatedcv",
                              number=10, repeats = 3)
@@ -1509,17 +1576,19 @@ model_rf <- caret::train(Survived ~ Sex+Parch+SibSp+Child+Age+Pclass,
 plot(model_rf)
 ```
 
-Mostramos la matriz de confusión
-```{r}
+
+**Matriz de confusión**
+```{r warning=FALSE, echo=FALSE}
 predict_rf <- predict(model_rf, data_test)
 mat.confusion_rf <- table(data_test$Survived, predict_rf)
 mat.confusion_rf
 pct.correcto_rf<-100 * sum(diag(mat.confusion_rf)) / sum(mat.confusion_rf)
 print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",
               pct.correcto_rf))
+tabla.modelos[nrow(tabla.modelos)+1,] = c("Random Forest", pct.correcto_rf, sum(confusion_rf)-sum(diag(mat.confusion_rf)))
 ```
 
-```{r}
+```{r warning=FALSE, echo=FALSE}
 csstab_rf <- CrossTable(data_test$Survived, predict_rf,
                         prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
                         dnn = c('Reality', 'Prediction'))
@@ -1528,7 +1597,7 @@ plot_matriz_confusion(csstab_rf)
 
 **Importancia de las variables**
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, echo=FALSE}
 datosVarImp <- varImp(model_rf)$importance %>% 
   as.data.frame() %>%
   rownames_to_column() %>%
@@ -1568,7 +1637,7 @@ Creamos primero unas variables para simplificar el uso de los distintos modelos.
 - testy es el dataframe pero sólo con la variable Survived (para el conjunto de test)
 
 
-```{r message= FALSE, warning=FALSE} 
+```{r warning=FALSE} 
 trainX <- data_train[, c(1:3,5:12)]
 trainy <- data_train[, 4]
 testX <- data_test[, c(1:3,5:12)]
@@ -1576,16 +1645,14 @@ testy <- data_test[, 4]
 ```
 
 ##### Importancia Atributos
-
-Vamos a crear una función que nos simplifique la generación de gráficas sobre la importancia de los atributos en un modelo de árbol C5.0.
-Mostraremos dos métricas
+Definimos primero las métricas que vamos a usar en los árboles C5.0 a la hora de mostrar la importancia de los atributos:
 
 - Usage: porcentaje de observaciones de entrenamiento que caen en todos los nodos generados tras una división en el que ha participado el predictor. Por ejemplo, en el caso de un árbol simple, el predictor empleado en la primera decisión recibe automáticamente una importancia del 100%, ya que todas las observaciones de entrenamiento caen en uno de los dos nodos hijos generados. Otros predictores puede que participen con frecuencia en divisiones, pero si en los nodos hijos solo caen unas pocas observaciones, su importancia puede ser próxima a cero. En el caso de boosting, se promedia la importancia de cada predictor en todos los árboles que forman el ensemble.
 
 - Splits: porcentaje de divisiones en las que participa cada predictor. No tiene en cuenta la importancia de la división.
 
-
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, , echo=FALSE}
+#Vamos a crear una función que nos simplifique la generación de gráficas sobre la importancia de los atributos en un modelo de árbol C5.0.
 importancia <- function(fit_tree) {
   imp_usage <- C5imp(fit_tree, metric = "usage")
   imp_usage <- imp_usage %>%
@@ -1622,7 +1689,7 @@ importancia <- function(fit_tree) {
 
 Vamos a empezar realizando un primer modelo C5.0 con los valores por defecto y con las reglas:
 
-```{r}
+```{r warning=FALSE}
 bc_tree <- C5.0(trainX, trainy, rules=TRUE )
 summary(bc_tree)
 ```
@@ -1634,20 +1701,25 @@ Aunque podríamos representar el árbol, nos han salido 11 reglas y es complicad
 Primero veamos visualmente la importancia de cada variable:
 
 
-```{r message= FALSE, warning=FALSE} 
+```{r warning=FALSE, echo= FALSE} 
 importancia(bc_tree)
 ```
+
 Está usando casi todas las variables, de ahí que nos salgan tantas reglas.
 
 Vamos a ver la precisión del modelo
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo= FALSE}
 predicted_model <- predict( bc_tree, testX, type="class" )
 print(sprintf("La precisión del árbol es: %.4f %%",100*sum(predicted_model == testy) / length(predicted_model)))
+
+
+
 ```
+
 Y su matriz de confusión:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE,  echo= FALSE}
 csstab_bc_tree <- CrossTable(testy, predicted_model,
                         prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
                         dnn = c('Reality', 'Prediction'))
@@ -1667,7 +1739,7 @@ Se marcan los predictores si su eliminación no incrementa la tasa de error. El 
 
 Se puede realizar winnowing en C5.0 simplemente usando un flag.
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 bc_winno_tree <- C5.0(
                       formula = Survived ~ ., 
                       data    = data_train,
@@ -1680,17 +1752,21 @@ Tenemos bastantes menos reglas que antes.
 
 Vamos a ver cuantas variables ha utilizado ahora:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, echo = FALSE}
 importancia(bc_winno_tree)
 ```
-Hay dos atributos que directamente no son usados, comprobamos si hemos mejorado la calidad del modelo. Usamos la matriz de confusión
 
-```{r message= FALSE, warning=FALSE}
+Hay dos atributos que directamente no son usados, comprobamos si hemos mejorado la calidad del modelo. 
+
+```{r warning=FALSE, echo= FALSE}
+
 bc_winno_tree_pred <- predict( bc_winno_tree, testX, type="class" )
 print(sprintf("La precisión del árbol es: %.4f %%",100*sum(bc_winno_tree_pred == testy) / length(bc_winno_tree_pred)))
 ```
 
-```{r message= FALSE, warning=FALSE}
+Con matriz de confusión: 
+
+```{r warning=FALSE, echo= FALSE}
 csstab_bc_winno_tree_pred <- CrossTable(testy, bc_winno_tree_pred,
                         prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
                         dnn = c('Reality', 'Prediction'))
@@ -1699,10 +1775,7 @@ plot_matriz_confusion(csstab_bc_winno_tree_pred)
 ```
 Tenemos 30 errores en este caso.
 
-
-
 Hemos mejorado casi dos puntos, obteniendo el mejor modelo por el momento
-
 
 ##### Tercer modelo C5.0 usando boosting
 
@@ -1715,8 +1788,7 @@ Es una labor tediosa que podemos simplificar usando la librería ```caret```, qu
 
 En este caso vamos a usar Cohen-Kappa como medición de calidad del modelo, y compararemos C5.0 generados con distintas iteraciones (boosting) combinándolo con winnowing y con rules/tree.
 
-
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 
 tuned <- train(trainX, trainy, method = "C5.0", tuneLength = 11,
  trControl = trainControl(method = "repeatedcv",
@@ -1724,7 +1796,7 @@ tuned <- train(trainX, trainy, method = "C5.0", tuneLength = 11,
  metric = "Kappa")
 ```
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, echo= FALSE}
 postResample(predict(tuned, testX), testy)
 plot(tuned, metric = "Kappa")
 ```
@@ -1733,7 +1805,7 @@ Los valores anteriores son orientativos y nos sirven para acotar más fácilment
 
 Vamos a crear el mejor árbol con winnowing y boost, usando 50 trials y sin reglas:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 bc_boost_tree <- C5.0(
                       formula = Survived ~ ., 
                       data    = data_train,
@@ -1746,14 +1818,14 @@ bc_boost_tree <- C5.0(
 
 Como antes, vemos la importancia de los atributos:
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, echo= FALSE}
 importancia(bc_boost_tree)
 ```
 En este caso todos los atributos tienen un uso muy alto.
 
 De nuevo calculamos matriz de confusión
 
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE, echo= FALSE}
 bc_boost_tree_pred <- predict( bc_boost_tree, testX, type="class" )
 print(sprintf("La precisión del árbol es: %.4f %%",100*sum(bc_boost_tree_pred == testy) / length(bc_boost_tree_pred)))
 csstab_bc_winno_tree_pred <- CrossTable(testy, bc_winno_tree_pred,
@@ -1767,8 +1839,30 @@ Hemos conseguido mejorar en casi un punto porcentual.
 
 \newpage
 # Representación de los resultados a partir de tablas y gráficas.
-TODO
-¿Ponemos algo explicando que se han ido mostrando a lo largo de los distintos puntos o simplemente lo quitamos?
+
+
+
+
+
+Durante la resolución de la práctica hemos aprovechado las capacidades didácticas del formato rmd para ir generando las gráficas y tablas en cada una de las secciones y explicando sus interpretaciones,
+
+Como resumen de los diferentes modelos predictivos:
+
+Los diferentes modelos se han comportado de la siguiente forma:
+
+| modelo           | precisión  | errores |
+|------------------|------------|---------|
+| glm1             | 83.8565    |  36     |
+| glm2             | 84.7534    |  34     |
+| glm3             | 83.8565    |  36     |
+| glm4             | 83.8565    |  36     |
+| arbol decision 1 |
+| arbol decision 2 |
+| Random Forest 2  |
+| C5.0 1           |
+| C5.0 2           |
+| C5.0 3           |
+
 
 # Resolución del problema. A partir de los resultados obtenidos, ¿cuáles son las conclusiones? ¿Los resultados permiten responder al problema?
 
@@ -1805,7 +1899,7 @@ que hemos considerado necesarias.
 - Un fichero “titanic_predict.csv”, en el que además de las columnas que tiene el fichero anterior, tiene una columna nueva llamada “Survived_Predicted”, que es la columna con la predicción de la variable “Survived” realizada con el modelo escogido.
 
 TODO##### Exportación de los datos
-```{r message= FALSE, warning=FALSE}
+```{r warning=FALSE}
 
 ```
 
