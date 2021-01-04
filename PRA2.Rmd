@@ -1163,11 +1163,11 @@ Vamos a utilizar como variables explicativas las variables que traía por defect
 Creamos un conjunto de entrenamiento y un conjunto de test. Es decir,vamos a realizar una partición, un 75% de datos para el entrenamiento, y el 25% restante para validar los modelos.
 
 ```{r warning=FALSE}
-set.seed(666)
+set.seed(123)
 
-split = sample.split(data$Survived, SplitRatio = 0.75)
-data_train = subset(data, split == TRUE)
-data_test = subset(data, split == FALSE)
+index_train <- createDataPartition(data$Survived, p=.75, list = FALSE)
+data_train <-data[index_train,]
+data_test <- data[-index_train, ]
 
 ```
 
@@ -1450,7 +1450,8 @@ TODO: ¿Explicación breve de las curvas?
 
 #### Árboles de decisión
 
-Los árboles de decisión son modelos muy sencillos de construir.
+Los árboles de decisión son modelos muy sencillos de construir. 
+Utilizaremos los "Recursive Partitioning and Regression Tree" que proporciona la libreria ```rpart```
 
 ##### Primer árbol de decisión
 
@@ -1638,10 +1639,16 @@ Creamos primero unas variables para simplificar el uso de los distintos modelos.
 
 
 ```{r warning=FALSE} 
-trainX <- data_train[, c(1:3,5:12)]
-trainy <- data_train[, 4]
-testX <- data_test[, c(1:3,5:12)]
-testy <- data_test[, 4]
+
+trainX <- data_train[, c("Sex","Parch","SibSp","Child","Age","Pclass")]
+trainy <- data_train[, c("Survived")]
+testX <- data_test[, c("Sex","Parch","SibSp","Child","Age","Pclass")]
+testy <- data_test[, c("Survived")]
+
+#trainX <- data_train[, c(1:3,5:12)]
+#trainy <- data_train[, 4]
+#testX <- data_test[, c(1:3,5:12)]
+#testy <- data_test[, 4]
 ```
 
 ##### Importancia Atributos
@@ -1688,8 +1695,8 @@ importancia <- function(fit_tree) {
 
 ```{r message= FALSE, warning=FALSE, echo=FALSE}
 # funcion para generar la información de precisión y confusion
-precision <- function(fit_tree, data_test, test_y, titulo) {
-    predict_unseen <- predict(fit_tree, data_test, type = 'class')
+precision <- function(fit_tree, test_x, test_y, titulo) {
+    predict_unseen <- predict(fit_tree, test_x, type = 'class')
     prec <- 100*sum(predict_unseen == test_y) / length(predict_unseen)
     print(sprintf("La precisión del árbol %s es: %.4f %%",titulo, prec))
     ct <- CrossTable(test_y, predict_unseen,
@@ -1707,8 +1714,13 @@ precision <- function(fit_tree, data_test, test_y, titulo) {
 Vamos a empezar realizando un primer modelo C5.0 con los valores por defecto y con las reglas:
 
 ```{r warning=FALSE}
-bc_tree <- C5.0(trainX, trainy, rules=TRUE )
+bc_tree <- C50::C5.0(trainX, 
+                     trainy,
+                      rules=FALSE, 
+                      control = C5.0Control(seed = 123)
+                )
 summary(bc_tree)
+plot(bc_tree)
 ```
 Aunque podríamos representar el árbol, nos han salido muchas reglas y es complicado de visualizar. Lo analizamos numéricamente.
 
@@ -1724,7 +1736,7 @@ Está usando casi todas las variables, de ahí que nos salgan tantas reglas.
 Vamos a ver la precisión del modelo
 
 ```{r warning=FALSE,  echo= FALSE}
-tabla.modelos[nrow(tabla.modelos)+1,] <- precision(bc_tree, data_test, testy, "C50 1")
+tabla.modelos[nrow(tabla.modelos)+1,] <- precision(bc_tree, testX, testy, "C50 1")
 
 ```
 
@@ -1741,15 +1753,14 @@ Se marcan los predictores si su eliminación no incrementa la tasa de error. El 
 Se puede realizar winnowing en C5.0 simplemente usando un flag.
 
 ```{r warning=FALSE}
-bc_winno_tree <- C5.0(
-                      formula = Survived ~ ., 
-                      data    = data_train,
-                      rules   = TRUE,
-                      control = C5.0Control(seed = 123, winnow = TRUE)
+bc_winno_tree <- C50::C5.0(trainX, 
+                           trainy,
+                           rules   = TRUE,
+                           control = C5.0Control(seed = 123, winnow = TRUE)
                     )
 summary(bc_winno_tree)
 ```
-Tenemos bastantes menos reglas que antes.
+Parece que en este caso no es capaz de eliminar atributos (winnow)
 
 Vamos a ver cuantas variables ha utilizado ahora:
 
@@ -1759,8 +1770,9 @@ importancia(bc_winno_tree)
 
 
 ```{r warning=FALSE, echo= FALSE}
-tabla.modelos[nrow(tabla.modelos)+1,]<- precision(bc_winno_tree, data_test, testy, "C50 2")
+tabla.modelos[nrow(tabla.modelos)+1,]<- precision(bc_winno_tree, testX, testy, "C50 2")
 ```
+Es una solución muy parecida a la anterior
 
 ##### Tercer modelo C5.0 usando boosting
 
@@ -1774,11 +1786,10 @@ Es una labor tediosa que podemos simplificar usando la librería ```caret```, qu
 En este caso vamos a usar Cohen-Kappa como medición de calidad del modelo, y compararemos C5.0 generados con distintas iteraciones (boosting) combinándolo con winnowing y con rules/tree.
 
 ```{r warning=FALSE}
-
+set.seed(123)
 tuned <- train(trainX, trainy, method = "C5.0", tuneLength = 11,
- trControl = trainControl(method = "repeatedcv",
- repeats = 5),
- metric = "Kappa")
+         trControl = trainControl(method = "repeatedcv", repeats = 5, allowParallel = F),
+         metric = "Kappa")
 ```
 
 ```{r warning=FALSE, echo= FALSE}
@@ -1788,13 +1799,13 @@ plot(tuned, metric = "Kappa")
 
 Los valores anteriores son orientativos y nos sirven para acotar más fácilmente los parámetros en los que buscar.
 
-Vamos a crear el mejor árbol con winnowing y boost, usando 50 trials y sin reglas:
+Vamos a crear el mejor árbol sin winnowing y boost, usando 30 trials y sin reglas:
 
 ```{r warning=FALSE}
-bc_boost_tree <- C5.0(
-                      formula = Survived ~ ., 
-                      data    = data_train,
-                      rules   = TRUE,
+bc_boost_tree <- C50::C5.0(
+                      trainX, 
+                      trainy,
+                      rules   = FALSE,
                       control = C5.0Control(seed = 123, winnow = FALSE),
                       trials = 30
                     )
@@ -1811,7 +1822,7 @@ En este caso todos los atributos tienen un uso muy alto.
 De nuevo calculamos matriz de confusión
 
 ```{r warning=FALSE,  echo= FALSE}
-tabla.modelos[nrow(tabla.modelos)+1,] <- precision(bc_boost_tree, data_test, testy, "C50 3")
+tabla.modelos[nrow(tabla.modelos)+1,] <- precision(bc_boost_tree, testX, testy, "C50 3")
 
 ```
 
@@ -1834,8 +1845,6 @@ knitr::kable(tabla.modelos)
 
 
 # Resolución del problema. A partir de los resultados obtenidos, ¿cuáles son las conclusiones? ¿Los resultados permiten responder al problema?
-TODO: los valores de precision cambian constantemente!! 
-
 
 Hemos procedido a realizar, sobre el conjunto de datos Titanic, las fases de limpieza, depuración y análisis de datos (eliminando variables innecesarias,
 imputando datos faltantes, comprobando supuestos estadísticos...), hasta finalmente implementar un conjunto de modelos de predicción basados en variables
@@ -1850,7 +1859,8 @@ Pero no podemos afirmar que fuese en todos los casos, como constata la dificulta
 
 Los diferentes modelos creados intentan resolverlo con resultados de precisión más bien discretos:
 
-- Los modelos que mejor han funcionado han sido los árboles de decisión C5.0, y sobre todo el tercer árbol con boosting de 50 y winnowing con casi un 88% de precisión. No obstante utiliza todos los atributos y no es fácil de visualizar.
+TODO: Resumir datos.
+
 
 - Del resto de modelos planteado destacaríamos tres de ellos con precisión de 83,78%: Dos regresiones logísticas usando datos enriquecidos con variables sintéticas, y un árbol de decisión con profundidad 5 para el que las variables más significativas resultaron ser las siguientes: **Sexmale**, **Pclass3** y **FamilySize** (aunque también hemos visto que hay otras variables influyentes en los modelos, y que eran de esperar como **Age** y sus variables derivadas, como **Child** y **AgeInterval** y que suponen también una lógica). 
 
