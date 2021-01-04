@@ -1163,7 +1163,7 @@ Vamos a utilizar como variables explicativas las variables que traía por defect
 Creamos un conjunto de entrenamiento y un conjunto de test. Es decir,vamos a realizar una partición, un 75% de datos para el entrenamiento, y el 25% restante para validar los modelos.
 
 ```{r warning=FALSE}
-set.seed(123)
+set.seed(666)
 
 split = sample.split(data$Survived, SplitRatio = 0.75)
 data_train = subset(data, split == TRUE)
@@ -1491,7 +1491,7 @@ csstab_tree1 <- CrossTable(data_test$Survived, predict_tree1,
                            dnn = c('Reality', 'Prediction'))
 
 plot_matriz_confusion(csstab_tree1)
-tabla.modelos[nrow(tabla.modelos)+1,] = c("Decision Tree 1", pct.correcto_tree1, sum(confusion_tree1)-sum(diag(mat.confusion_tree1)))
+tabla.modelos[nrow(tabla.modelos)+1,] = c("Decision Tree 1", pct.correcto_tree1, sum(mat.confusion_tree1)-sum(diag(mat.confusion_tree1)))
 ```
 
 
@@ -1534,7 +1534,7 @@ print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",
 print(paste0("El mejor parámetro para el árbol de clasificación ha sido: ",
              names(model_tree2$bestTune),"=", model_tree2$bestTune))
 
-tabla.modelos[nrow(tabla.modelos)+1,] = c("Decision Tree 2", pct.correcto_tree2, sum(confusion_tree2)-sum(diag(mat.confusion_tree2)))
+tabla.modelos[nrow(tabla.modelos)+1,] = c("Decision Tree 2", pct.correcto_tree2, sum(mat.confusion_tree2)-sum(diag(mat.confusion_tree2)))
 ```
 
 **Matriz de confusión**
@@ -1585,7 +1585,7 @@ mat.confusion_rf
 pct.correcto_rf<-100 * sum(diag(mat.confusion_rf)) / sum(mat.confusion_rf)
 print(sprintf("El %% de registros correctamente clasificados es: %.4f %%",
               pct.correcto_rf))
-tabla.modelos[nrow(tabla.modelos)+1,] = c("Random Forest", pct.correcto_rf, sum(confusion_rf)-sum(diag(mat.confusion_rf)))
+tabla.modelos[nrow(tabla.modelos)+1,] = c("Random Forest", pct.correcto_rf, sum(mat.confusion_rf)-sum(diag(mat.confusion_rf)))
 ```
 
 ```{r warning=FALSE, echo=FALSE}
@@ -1685,6 +1685,23 @@ importancia <- function(fit_tree) {
 ```
 
 
+
+```{r message= FALSE, warning=FALSE, echo=FALSE}
+# funcion para generar la información de precisión y confusion
+precision <- function(fit_tree, data_test, test_y, titulo) {
+    predict_unseen <- predict(fit_tree, data_test, type = 'class')
+    prec <- 100*sum(predict_unseen == test_y) / length(predict_unseen)
+    print(sprintf("La precisión del árbol %s es: %.4f %%",titulo, prec))
+    ct <- CrossTable(test_y, predict_unseen,
+           prop.chisq = FALSE, 
+           proc.c = FALSE, 
+           prop.r = FALSE, 
+           dnn = c('Reality', 'Prediction'))
+    plot_matriz_confusion(ct)
+    return(c(titulo, prec, length(predict_unseen)-sum(predict_unseen == test_y)))
+}
+```
+
 ##### Primer modelo c5.0
 
 Vamos a empezar realizando un primer modelo C5.0 con los valores por defecto y con las reglas:
@@ -1693,10 +1710,7 @@ Vamos a empezar realizando un primer modelo C5.0 con los valores por defecto y c
 bc_tree <- C5.0(trainX, trainy, rules=TRUE )
 summary(bc_tree)
 ```
-
-Errors muestra el número y porcentaje de casos mal clasificados en el subconjunto de entrenamiento. El árbol obtenido clasifica erróneamente 79 668 casos dados, una tasa de error del 11.8%.
-
-Aunque podríamos representar el árbol, nos han salido 11 reglas y es complicado de visualizar. Lo analizamos númericamente.
+Aunque podríamos representar el árbol, nos han salido muchas reglas y es complicado de visualizar. Lo analizamos numéricamente.
 
 Primero veamos visualmente la importancia de cada variable:
 
@@ -1710,22 +1724,9 @@ Está usando casi todas las variables, de ahí que nos salgan tantas reglas.
 Vamos a ver la precisión del modelo
 
 ```{r warning=FALSE,  echo= FALSE}
-predicted_model <- predict( bc_tree, testX, type="class" )
-print(sprintf("La precisión del árbol es: %.4f %%",100*sum(predicted_model == testy) / length(predicted_model)))
-
-
+tabla.modelos[nrow(tabla.modelos)+1,] <- precision(bc_tree, data_test, testy, "C50 1")
 
 ```
-
-Y su matriz de confusión:
-
-```{r warning=FALSE,  echo= FALSE}
-csstab_bc_tree <- CrossTable(testy, predicted_model,
-                        prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
-                        dnn = c('Reality', 'Prediction'))
-plot_matriz_confusion(csstab_bc_tree)
-```
-Se observa que tenemos 32 errores de clasificación.
 
 ##### Segundo modelo C5.0 con Winnowing
 
@@ -1756,26 +1757,10 @@ Vamos a ver cuantas variables ha utilizado ahora:
 importancia(bc_winno_tree)
 ```
 
-Hay dos atributos que directamente no son usados, comprobamos si hemos mejorado la calidad del modelo. 
 
 ```{r warning=FALSE, echo= FALSE}
-
-bc_winno_tree_pred <- predict( bc_winno_tree, testX, type="class" )
-print(sprintf("La precisión del árbol es: %.4f %%",100*sum(bc_winno_tree_pred == testy) / length(bc_winno_tree_pred)))
+tabla.modelos[nrow(tabla.modelos)+1,]<- precision(bc_winno_tree, data_test, testy, "C50 2")
 ```
-
-Con matriz de confusión: 
-
-```{r warning=FALSE, echo= FALSE}
-csstab_bc_winno_tree_pred <- CrossTable(testy, bc_winno_tree_pred,
-                        prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
-                        dnn = c('Reality', 'Prediction'))
-plot_matriz_confusion(csstab_bc_winno_tree_pred)
-
-```
-Tenemos 30 errores en este caso.
-
-Hemos mejorado casi dos puntos, obteniendo el mejor modelo por el momento
 
 ##### Tercer modelo C5.0 usando boosting
 
@@ -1810,8 +1795,8 @@ bc_boost_tree <- C5.0(
                       formula = Survived ~ ., 
                       data    = data_train,
                       rules   = TRUE,
-                      control = C5.0Control(seed = 123, winnow = TRUE),
-                      trials = 40
+                      control = C5.0Control(seed = 123, winnow = FALSE),
+                      trials = 30
                     )
 ```
 
@@ -1825,46 +1810,32 @@ En este caso todos los atributos tienen un uso muy alto.
 
 De nuevo calculamos matriz de confusión
 
-```{r warning=FALSE, echo= FALSE}
-bc_boost_tree_pred <- predict( bc_boost_tree, testX, type="class" )
-print(sprintf("La precisión del árbol es: %.4f %%",100*sum(bc_boost_tree_pred == testy) / length(bc_boost_tree_pred)))
-csstab_bc_winno_tree_pred <- CrossTable(testy, bc_winno_tree_pred,
-                        prop.chisq  = FALSE, prop.c = FALSE, prop.r =FALSE, 
-                        dnn = c('Reality', 'Prediction'))
-plot_matriz_confusion(csstab_bc_winno_tree_pred)
-```
-Tenemos 26 errores en este caso.
+```{r warning=FALSE,  echo= FALSE}
+tabla.modelos[nrow(tabla.modelos)+1,] <- precision(bc_boost_tree, data_test, testy, "C50 3")
 
-Hemos conseguido mejorar en casi un punto porcentual.
+```
+
 
 \newpage
 # Representación de los resultados a partir de tablas y gráficas.
+TODO: AMPLIAR ALGO
 
+Durante la resolución de la práctica hemos aprovechado las capacidades didácticas del formato rmd para ir generando las gráficas y tablas en cada una de las secciones y explicando sus interpretaciones, esto es especialmente relevante en el caso del análisis exploratorio pues a la hora de tomar decisiones de limpieza y de uso de variables, disponer de las gráficas en el momento de la decisión es muy útil.
 
+Con respecta a los modelos predictivos, se han ido también creando gráficas representando las tablas de confusión y extrayendo la precisión de los modelos.
+En los árboles se han mostrado, cuando eran suficientemente pequeños, las representaciones gráficas de los mismos, y cuando no se han mostrado datos y tablas numéricas explicando brevemente su utilidad.
 
+Si que podemos exponer un resumen del comportamiento de los diferentes modelos predictivos creados a lo largo del ejercicio
 
+```{r}
+knitr::kable(tabla.modelos)
+```
 
-Durante la resolución de la práctica hemos aprovechado las capacidades didácticas del formato rmd para ir generando las gráficas y tablas en cada una de las secciones y explicando sus interpretaciones,
-
-Como resumen de los diferentes modelos predictivos:
-
-Los diferentes modelos se han comportado de la siguiente forma:
-
-| modelo           | precisión  | errores |
-|------------------|------------|---------|
-| glm1             | 83.8565    |  36     |
-| glm2             | 84.7534    |  34     |
-| glm3             | 83.8565    |  36     |
-| glm4             | 83.8565    |  36     |
-| arbol decision 1 |
-| arbol decision 2 |
-| Random Forest 2  |
-| C5.0 1           |
-| C5.0 2           |
-| C5.0 3           |
 
 
 # Resolución del problema. A partir de los resultados obtenidos, ¿cuáles son las conclusiones? ¿Los resultados permiten responder al problema?
+TODO: los valores de precision cambian constantemente!! 
+
 
 Hemos procedido a realizar, sobre el conjunto de datos Titanic, las fases de limpieza, depuración y análisis de datos (eliminando variables innecesarias,
 imputando datos faltantes, comprobando supuestos estadísticos...), hasta finalmente implementar un conjunto de modelos de predicción basados en variables
