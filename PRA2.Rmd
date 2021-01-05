@@ -149,12 +149,19 @@ remove(data_unique)
 
 La dimensionalidad ha quedado exactamente igual que cuando cargamos el conjunto de datos. Esto nos hace ver que no existen registros duplicados.
 
-Podemos visualizar una muestra de los primeros registros de nuestro dataframe:
+Revisamos la estructura de nuestro dataset:
 
 ```{r warning=FALSE}
 summary(data)
 df_status(data)
 ```
+
+Podemos visualizar una muestra de los primeros registros de nuestro dataframe:
+
+```{r warning=FALSE}
+head(data, 10)
+```
+
 
 Existen variables que carecen de interés por ser identificadoras de cada registro. Estamos haciendo referencia a “PassengerId”, “Ticket” y “Name”. No nos interesa tener unívocamente identificado cada caso para realizar algún tipo de análisis por lo que no aportan nada a nuestro estudio.
 
@@ -248,14 +255,10 @@ df_status(data)
 
 Vamos a analizar los elementos nulos que se encuentran en el dataset
 
-```{r warning=FALSE}
-data %>% group_by(Embarked) %>% count(Embarked)
-```
-
-En la tabla observamos que el campo **Age** tiene un 19.87% de nulos, **Cabin** más de un 77% y **Embarked** tiene 2 valores nulos.
+En la tabla anterior observamos que el campo **Age** tiene un 19.87% de nulos, **Cabin** más de un 77% y **Embarked** tiene 2 valores nulos.
 Analizamos cada uno de ellos con más detalles para decidir las acciones a realizar.
 
-#### Cabin
+#### Cabin\
 
 Por su número tan elevado de casos, un 77%, y por no ser significativa para nuestros objetivos, se opta por eliminar esta variable.
 
@@ -263,7 +266,7 @@ Por su número tan elevado de casos, un 77%, y por no ser significativa para nue
 data <- select(data, -Cabin)
 ```
 
-#### Embarked
+#### Embarked\
 
 Esta variable presenta 2 valores nulos. Al ser pocos casos, decidimos imputar el valor que más se repite: Embarked=S (Southampton)
 
@@ -285,7 +288,7 @@ ggplot(dat_plot, aes(x=Var1, y=Freq, fill=Var1)) +
 data$Embarked[is.na(data$Embarked)] <- names(data_Embarked[1])
 ```
 
-#### Age
+#### Age\
 
 Contiene concretamente 177 registros con valores nulos.
 
@@ -306,7 +309,7 @@ ggplot(data_NoNA, aes(Age))+
 
 Comprobamos posibles relaciones entre la edad y alguna otra variable. Para ello iremos analizando Age con las distintas variables.
 
-##### Age vs Sex
+##### Age vs Sex\
 
 Observamos gráficamente la relación entre la edad y el género
 
@@ -317,7 +320,7 @@ ggplot(data_NoNA, aes(y=Age, x=Sex, fill=Sex)) + geom_boxplot() + labs(title = p
 
 No se aprecian diferencias significativas de edad en función del género
 
-##### Age vs Embarked
+##### Age vs Embarked\
 
 Observamos gráficamente la relación entre la edad y el puerto de Embarque
 
@@ -329,7 +332,7 @@ ggplot(data_NoNA, aes(y=Age, x=Embarked, fill=Embarked)) +
 
 No se aprecian diferencias significativas con respecto a las medias de edad en cada una de las clases de **Embarked**.
 
-##### Age vs Pclass
+##### Age vs Pclass\
 
 Observamos gráficamente la relación entre Age y Pclass:
 
@@ -341,7 +344,7 @@ ggplot(data_NoNA, aes(y=Age, x=Pclass, fill=Pclass)) +
 
 Observamos una relación entre la edad y la clase en que viajaban los pasajeros: Los pasajeros de clase 1 (alta) tenían generalmente mayor edad que los de clase 2 (media) e igualmente sucede con los de clase 3 (baja). Lo cual es lógico (más edad más poder adquisitivo).
 
-##### Age vs Variables numéricas
+##### Age vs Variables numéricas\
 
 Vemos las distintas correlaciones de las variables numéricas
 
@@ -350,17 +353,18 @@ lista<-sapply(data, is.numeric)
 data_num_NoNA = data_NoNA[,lista]
 ```
 
+
 ```{r warning=FALSE,  echo=FALSE}
 corrplot.mixed(cor(data_num_NoNA))
 ```
 
 Observamos una correlación negativa con **SibSp** y con **Parch**.
 
-##### Imputación de valores a Age
+##### Imputación de valores a Age\
 
 Vamos a realizar dos simulaciones diferentes de imputación y nos quedaremos con la mejor:
 
-**Caso 1: Imputar la media de **Age** a todos los elementos faltantes**
+**Caso 1: Imputar la media de Age a todos los elementos faltantes**
 
 ```{r warning=FALSE}
 data$Age1 <- data$Age
@@ -408,7 +412,7 @@ data$Age <- data$Age2
 data <- select(data, -Age1, -Age2)
 ```
 
-### Valores igual a cero 
+### Valores igual a cero\
 
 Recordamos los valores con ceros del dataset
 
@@ -419,7 +423,7 @@ df_status(data)
 Tenemos un alto número de valores cero tanto en **SibSp** como en **Parch**. No obstante, son valores válidos dentro del rango para estas variables ya que expresan el número de acompañantes del pasajero. 
 Sorprende que hay algunos valores cero en **Fare**, aunque pudiera significar que esos tickets fueron gratis debido a algún sorteo o regalo.
 
-### Conclusión limpieza nulos y ceros
+### Conclusión limpieza nulos y ceros\
 
 Observamos que hemos eliminado los valores nulos y tenemos un nuevo valor de media y mediana para **Age**.
 
@@ -450,7 +454,7 @@ De todas las variables numéricas sólamente tres son contínuas: **Age**, **Pri
 
 Analicemos esas tres variables por separado
 
-### Fare
+### Fare\
 
 El boxplot parece indicar que Fare tiene valores extremos. Los identificamos usando el criterio de tres veces la desviación típica:
 
@@ -483,7 +487,7 @@ boxplot(data$Fare~data$Pclass,xlab="Pclass",ylab="Fare",
         col=c("blue","yellow","red"))
 ```
 
-### Price
+### Price\
 
 Hacemos un análisis similar con la variable Price:
 
@@ -517,7 +521,7 @@ boxplot(data$Price~data$Pclass,xlab="Pclass",ylab="Price",col=c("blue","yellow",
 
 Optamos por considerarlos válidos y no realizamos ninguna accion.
 
-### Age
+### Age\
 
 Hacemos un análisis similar con la variable Age:
 
@@ -550,7 +554,7 @@ Podríamos tener 2 valores outliers pero observando los valores devueltos por bo
 
 Nos interesa poder realizar diferentes tipos de análisis en función de diferentes subconjuntos de datos, como puede ser el género, la clase en la que viajan los pasajeros, el puerto en el que han embarcado, grupos por edad, índice de supervivencia de los niños respecto a los adultos, etc.
 
-### Niños
+### Niños\
 
 Definimos una variable Child para aquellos registros en los que la edad sea inferior a 8 años.
 
@@ -561,7 +565,7 @@ data$Child[data$Age > edad_corte] <- 0
 data$Child <- as.factor((data$Child))
 ```
 
-### Género
+### Género\
 
 Agrupamos por el género, creando una variable para cada uno de los géneros
 
@@ -570,7 +574,7 @@ Mujeres <- data[which(data$Sex == 'female'),]
 Hombres <- data[which(data$Sex == 'male'),]
 ```
 
-### Lugar de embarque
+### Lugar de embarque\
 
 Agrupamos por el lugar de embarque creando una variable por cada uno de los lugares
 
@@ -581,7 +585,7 @@ EmbarqueS <- data[which(data$Embarked == 'S'),]
 
 ```
 
-### Clase
+### Clase\
 
 Agrupamos por clase
 
@@ -591,7 +595,7 @@ SecondClass <- data[which(data$Pclass == 2),]
 ThirdClass <- data[which(data$Pclass == 3),]
 ```
 
-### Edades
+### Edades\
 
 Vamos a discretizar los valores por grupos de edades, añadiendo una columna al dataset (AgeInterval)
 
@@ -604,7 +608,7 @@ plot(data$AgeInterval)
 
 ## Comprobación de la normalidad y homogeneidad de la varianza.
 
-### Normalidad
+### Normalidad\
 
 Algunos test estadísticos requieren que las variables que van a ser analizadas sigan una distribución normal, por tanto tenemos que conocer cuáles son las distribuciones de nuestras variables continuas.
 Estas son las variables **Age** y **Fare**. Además, hemos generado una nueva variable a partir de **Fare**, **Price**, y que, por tanto también es una variable cualitativa continua. 
@@ -673,9 +677,10 @@ for (i in 1:length(var.continuas)) {
 Observamos que la variable **Age** está próxima a una distribución normal por lo cual podemos utilizar el test de *Levene* para la comprobación de varianzas.
 Cuando comparamos varianzas lo que estamos comprobando es que las varianzas entre los grupos a comparar son iguales. La hipótesis nula asume la igualdad de varianzas en los diferentes grupos de datos, con lo que si el p-value obtenido es inferior al nivel de significancia (generalmente alpha = 0,05) se rechaza la hipótesis nula y se concluye que hay heterocedasticidad.
 
+
 #### Age
 
-##### Age con Survived
+##### Age con Survived\
 
 Primero, comprobamos la homogeneidad de varianzas de la edad en los grupos de supervivientes y no supervivientes.
 
@@ -684,7 +689,7 @@ leveneTest(data = data, Age ~ Survived, center = mean)
 ```
 En este caso el p-value es superior a 0.05 y por tanto asumimos que hay **homogeneidad de varianzas** entre los grupos
 
-##### Age con Embarked
+##### Age con Embarked\
 
 Comprobamos el comportamiento de la varianza cuando se trata de la variable edad **Age** con **Embarked**.
 
@@ -694,7 +699,7 @@ leveneTest(data = data, Age ~ Embarked, center = mean)
 
 Hay **homogeneidad de varianzas** de **Age** en los grupos que define la variable **Embarked**
 
-##### Age con Pclass
+##### Age con Pclass\
 
 Comprobamos el comportamiento de la varianza cuando se trata de la variable edad **Age** con **Pclass**.
 
@@ -704,7 +709,7 @@ leveneTest(data = data, Age ~ Pclass, center = mean)
 
 Hay **heterogeneidad de varianzas** entre las muestras de **Age**  cuando se agrupan por **Pclass**
 
-##### Age con Sex
+##### Age con Sex\
 
 Comprobamos el comportamiento de la varianza cuando se trata de la variable edad **Age** con respecto a **Sex**.
 
@@ -714,7 +719,7 @@ leveneTest(data = data, Age ~ Sex, center = mean)
 
 Hay **homogeneidad de varianzas** para *Age* cuando está agrupado por *Sex*
 
-##### Resumen Age
+##### Resumen Age\
 
 Resumimos en una tabla los resultados de homogeneidad de la varianza de Age con respecto a los distintos atributos:
 
@@ -732,7 +737,7 @@ Resumimos en una tabla los resultados de homogeneidad de la varianza de Age con 
 
 Vamos a analizar las relaciones entre variables para aclarar la dependencia entre ellas y como pueden afectar a las posibilidades de supervivencia:
 
-#### Age y Sex
+#### Age y Sex\
 
 Nos gustaría analizar las diferencias entre la media de edad de mujeres y de hombres, utilizando el test paramétrico *t-test de Student*, que requiere que las muestras a comparar sigan una distribución normal.
 Comprobemos primero que la variable **Age** sigue una distribución normal:
@@ -759,7 +764,7 @@ t.test(Mujeres$Age, Hombres$Age, alternative = "less", var.equal = TRUE)
 
 Con un p-value menor de 0.5 rechazamos la hipótesis nula, es decir, podemos afirmar que la media de edad de las mujeres es inferior a la media de edad de los hombres.
 
-#### Survival y Sex
+#### Survival y Sex\
 
 Mostramos gráficamente la relación entre las dos variables:
 
@@ -786,7 +791,7 @@ fisher.test(table(data$Sex, data$Survived), alternative = 'less')
 
 El valor de p-value inferior a 0.05) con lo que se cumple la hipótesis alternativa: **la proporción de mujeres que mueren es inferior a la de los hombres**.
 
-#### Survival y Pclass 
+#### Survival y Pclass\ 
 
 Mostramos gráficamente la relación entre las dos variables:
 
@@ -804,7 +809,7 @@ test_chisq
 El valor de p-value es inferior a 0.05, es decir, rechazamos la hipótesis nula, y por tanto afirmamos que las variables no son independientes. Esto quiere decir que **el grado de supervivencia era distinto dependiendo de la clase en la que estuvieses**. 
 
 
-#### Survived y Embarked
+#### Survived y Embarked\
 
 Mostramos gráficamente la relación entre las dos variables:
 
@@ -822,7 +827,7 @@ test_chisq
 
 Se rechaza la hipótesis nula, por lo tanto **las variables son dependientes**.
 
-#### Survived y Child 
+#### Survived y Child\
 
 Mostramos gráficamente la relación entre las dos variables, siendo **Child** una variable que corresponde a los niños de edad igual o inferior a 8 años:
 
@@ -843,7 +848,7 @@ fisher.test(table(data$Child, data$Survived), alternative = 'greater')
 ```
 Se rechaza la hipótesis nula, y se acepta la alternativa, es decir que la **probabilidad de muerte de los no-niños es mayor que la de los niños**.
 
-#### Survived y Age
+#### Survived y Age\
 
 Comprobamos ahora si la media de edad de las personas que murieron es similar con la media de edad que sobrevivieron, aplicando el test *t-Test*.
 
@@ -951,11 +956,12 @@ tabla.modelos <- data.frame('Modelo' = character(),
 str(tabla.modelos)
 ```
 
-#### Modelo de regresión logística
+#### Modelo de regresión logística\
 
 Un modelo de regresión logística es un tipo de análisis de regresión que se utiliza para predecir el resultado de una variable categórica, en función de las variables independientes. Nuestra variable objetivo es **Survived**, que toma los valores de 0 o 1 (1 cuando el pasajero sobrevivió al accidente y 0 en caso contrario). 
 
-##### Primer modelo glm
+##### Primer modelo glm\
+
 
 Creamos un primer modelo glm1 con las variables "original": **Pclass**, **SibSp**, **Parch**, **Sex**, **Age**, **Fare** y **Embarked**
 
@@ -991,7 +997,8 @@ tabla.modelos[nrow(tabla.modelos)+1,] = c("glm1", pct.correcto_glm1, sum(mat.con
 
 ```
 
-##### Segundo modelo glm
+##### Segundo modelo glm\
+
 
 Construimos un segundo modelo (glm2), similar al anterior pero esta vez partiendo de los resultados del modelo anterior, le vamos a quitar aquellas variables que vimos que no eran significativas para el modelo de predicción. Por lo tanto, tendremos un modelo2 cuyas variables a utilizar serán **Pclass**, **SibSp**, **Sex** y **Age**.
 
@@ -1020,7 +1027,8 @@ plot_matriz_confusion(csstab_glm2)
 tabla.modelos[nrow(tabla.modelos)+1,] = c("glm2", pct.correcto_glm2, sum(mat.confusion_glm2)-sum(diag(mat.confusion_glm2)))
 ```
 
-##### Tercer modelo glm
+##### Tercer modelo glm\
+
 
 Construimos un tercer modelo (glm3), pero esta vez vamos a intentar utilizar alguna de las variables que hemos construido para ayudar a predecir la supervivencia. Para este caso vamos a utilizar las variables nuevas **Child** y también **FamilySize**. Además, vamos a utilizar tres variables originales: **Pclass**, **Sex** y **Age**.
 
@@ -1050,7 +1058,7 @@ plot_matriz_confusion(csstab_glm3)
 tabla.modelos[nrow(tabla.modelos)+1,] = c("glm3", pct.correcto_glm3, sum(mat.confusion_glm3)-sum(diag(mat.confusion_glm3)))
 ```
 
-##### Resumen modelos regresion
+##### Resumen modelos regresion\
 
 Los diferentes modelos se han comportado de la siguiente forma:
 
@@ -1058,11 +1066,11 @@ Los diferentes modelos se han comportado de la siguiente forma:
 knitr::kable(tabla.modelos)
 ```
 
-#### Árboles de decisión
+#### Árboles de decisión\
 
 Los árboles de decisión son modelos muy sencillos de construir. Utilizaremos los "Recursive Partitioning and Regression Tree" que proporciona la libreria ```rpart```
 
-##### Primer árbol de decisión
+##### Primer árbol de decisión\
 
 Creamos un primer árbol con los parámetros básicos
 
@@ -1104,7 +1112,7 @@ plot_matriz_confusion(csstab_tree1)
 tabla.modelos[nrow(tabla.modelos)+1,] = c("Decision Tree 1", pct.correcto_tree1, sum(mat.confusion_tree1)-sum(diag(mat.confusion_tree1)))
 ```
 
-##### Segundo árbol de decisión
+##### Segundo árbol de decisión\
 
 Manteniendo las mismas variables predictivas, pero cambiando la profundidad máxima del árbol (maxdepth) se pueden mejorar los resultados obtenidos:
 
@@ -1167,7 +1175,7 @@ ggplot(datosVarImp)+
 
 ```
 
-#### Random Forest
+#### Random Forest\
 
 Construimos un Random Forest, una combinación de árboles de predicción. Cada árbol utiliza muestras con reemplazo del conjunto de datos que se le pasa al modelo. Cada uno utiliza valores diferentes de variables, para dar opciones a algunas variables que podrían quedar eclipsadas por otras con más relevancia.
 
@@ -1244,19 +1252,14 @@ Creamos primero unas variables para simplificar el uso de los distintos modelos.
 
 
 ```{r warning=FALSE} 
-
 trainX <- data_train[, c("Sex","Parch","SibSp","Child","Age","Pclass")]
 trainy <- data_train[, c("Survived")]
 testX <- data_test[, c("Sex","Parch","SibSp","Child","Age","Pclass")]
 testy <- data_test[, c("Survived")]
-
-#trainX <- data_train[, c(1:3,5:12)]
-#trainy <- data_train[, 4]
-#testX <- data_test[, c(1:3,5:12)]
-#testy <- data_test[, 4]
 ```
 
-##### Importancia de los atributos
+##### Importancia de los atributos\
+
 Definimos primero las métricas que vamos a usar en los árboles C5.0 a la hora de mostrar la importancia de los atributos:
 
 - Usage: porcentaje de observaciones de entrenamiento que caen en todos los nodos generados tras una división en el que ha participado el predictor. Por ejemplo, en el caso de un árbol simple, el predictor empleado en la primera decisión recibe automáticamente una importancia del 100%, ya que todas las observaciones de entrenamiento caen en uno de los dos nodos hijos generados. Otros predictores puede que participen con frecuencia en divisiones, pero si en los nodos hijos solo caen unas pocas observaciones, su importancia puede ser próxima a cero. En el caso de boosting, se promedia la importancia de cada predictor en todos los árboles que forman el ensemble.
@@ -1313,7 +1316,7 @@ precision <- function(fit_tree, test_x, test_y, titulo) {
 }
 ```
 
-##### Primer modelo c5.0
+##### Primer modelo c5.0\
 
 Vamos a empezar realizando un primer modelo C5.0 con los valores por defecto y con las reglas:
 
@@ -1343,7 +1346,7 @@ tabla.modelos[nrow(tabla.modelos)+1,] <- precision(bc_tree, testX, testy, "C50 1
 
 ```
 
-##### Segundo modelo C5.0 con Winnowing
+##### Segundo modelo C5.0 con Winnowing\
 
 Winnowing consiste en aplicar un algoritmo de clasificación (algoritmo Winnow) a los atributos para eliminar aquellos que sean de poca ayuda.
 
@@ -1377,7 +1380,7 @@ tabla.modelos[nrow(tabla.modelos)+1,]<- precision(bc_winno_tree, testX, testy, "
 ```
 No hemos mejorado los errores
 
-##### Tercer modelo C5.0 usando boosting
+##### Tercer modelo C5.0 usando boosting\
 
 La implementación del C5.0 dispone de la posibilidad de aplicar un *Boosting* similar a *AdaBoost*, que permite combinar varios árboles (técnica de *Ensemble*) para producir mejores modelos predictivos que si sólamente usasemos un árbol de decisión simple.
 
@@ -1401,7 +1404,7 @@ plot(tuned, metric = "Kappa")
 
 Los valores anteriores son orientativos y nos sirven para acotar más fácilmente los parámetros en los que buscar.
 
-Vamos a crear el mejor árbol sin winnowing y boost, usando 30 trials y sin reglas:
+Vamos a crear el mejor árbol sin winnowing y boost, usando 20 trials y sin reglas:
 
 ```{r warning=FALSE}
 bc_boost_tree <- C50::C5.0(
@@ -1409,10 +1412,9 @@ bc_boost_tree <- C50::C5.0(
                       trainy,
                       rules   = FALSE,
                       control = C5.0Control(seed = 123, winnow = FALSE),
-                      trials = 10
+                      trials = 20
                     )
 ```
-
 
 Como antes, vemos la importancia de los atributos:
 
@@ -1427,7 +1429,6 @@ De nuevo calculamos matriz de confusión
 tabla.modelos[nrow(tabla.modelos)+1,] <- precision(bc_boost_tree, testX, testy, "C50 3")
 
 ```
-
 
 \newpage
 # Representación de los resultados a partir de tablas y gráficas.
@@ -1460,9 +1461,8 @@ Hemos creado diferentes modelos predictivos y los resultados de precisión han s
 
 - Ninguno de Los árboles de decisión planteados ha conseguido mejorar ese registro, quedándose como mejores dos c5.0 en un 81.53% de precision y 41 errores. El uso de un conjunto mas limitado de atributos tras el análisis previo, ha resultado en que la técnica de winnowing no mejore los resultados, pues todos los atributos son usados. Lo que si varía entre los distintos c5.0 es el balance entre los tipos de errores. Dado el tipo de problema que se plantea sería preferible quedarse con los modelos que fallan mas prediciendo más "no-supervivencia" (y luego si que sobreviven ) que los que fallan más prediciendo mas supervivencia y luego no sobreviven.
 
-- Aunque la precisión total de los modelos fue equivalente, en el modelo de regresión logística ha fallado en que fallecen el 11,68% y el modelo predice que sobreviven (y sobreviven el 23.53% y el modelo predice lo contrario), mientras que en el árbol (tree2) se ha fallado en que fallecen realmente un 7,30% y el modelo predice que sobreviven (y sobreviven el 30,59% y el modelo predice que mueren). 
-
-Creemos que es preferible que se equivoque más en la predicción de que no van a sobrevivir y al final si lo hacen que en lo contrario (que se prediga que sobrevive y luego no lo haga). 
+- La distribución de los fallos en el modelo de regresión logística ha sido que realmente fallecen el 9,49% y el modelo predice que sobreviven (y sobreviven el 22.35% y el modelo predice lo contrario). Si buscamos un modelo que se equivoque menos en la predicción de que sobrevive y luego no lo haga, podríamos usar el primer árbol de decisión que solo tiene un 2.92% de error en ese caso a costa de tener un 52.94% en los casos que predice que fallecen y realmente sobrevive.
+Otra opción es parametrizar el C5.0 para que priorize tener menos errores del tipo predigo que fallece pero sobrevive. Aunque esto siempre será a costa de un mayor número de errores globales.
 
 
 ## Exportación de los datos

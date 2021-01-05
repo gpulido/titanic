@@ -21,3 +21,7 @@ Tipología y ciclo de vida de los datos (Data Sciencie Master - UOC)
 - The file PRA2.html is the resolution of the asigment on html format.
 
 - The file PRA-header.html is the header needed to knit the rmd into html.
+
+- The file titanic_final.csv contains the clean dataset with 12 variables, the nulls treated and that was being used to train the predict models
+
+- The file titanic_predict.csv is the same file with another variable *Survived_predicted* with the results of the Survived variable for the best model used
