@@ -159,7 +159,8 @@ df_status(data)
 Podemos visualizar una muestra de los primeros registros de nuestro dataframe:
 
 ```{r warning=FALSE}
-head(data, 10)
+kbl(head(data, n = 10), booktabs = T) %>% 
+  kable_styling(latex_options = c("striped", "scale_down"))
 ```
 
 
@@ -651,7 +652,8 @@ for (i in 1:length(var.continuas)){
                                                   test$statistic, test$p.value)
 }
 
-knitr::kable(tabla.normalidad)
+knitr::kable(tabla.normalidad, booktabs = T) %>% 
+  kable_styling(latex_options = c("striped"))
 ```
 
 En todos los casos el *p-value* ha sido inferior a 0.05 y, por lo tanto, se rechaza la hipótesis nula que implicaba que la variable sigue una distribución normal. Ninguna de las 3 variables sigue una distribución normal.
@@ -1063,7 +1065,8 @@ tabla.modelos[nrow(tabla.modelos)+1,] = c("glm3", pct.correcto_glm3, sum(mat.con
 Los diferentes modelos se han comportado de la siguiente forma:
 
 ```{r}
-knitr::kable(tabla.modelos)
+knitr::kable(tabla.modelos, booktabs = T) %>% 
+  kable_styling(latex_options = c("striped"))
 ```
 
 #### Árboles de decisión\
@@ -1444,7 +1447,8 @@ En los árboles se han mostrado, cuando eran suficientemente pequeños, las repr
 A continuación, exponemos un resumen del comportamiento de los diferentes modelos predictivos creados a lo largo de la práctica:
 
 ```{r}
-knitr::kable(tabla.modelos)
+knitr::kable(tabla.modelos, booktabs = T) %>% 
+  kable_styling(latex_options = c("striped"))
 ```
 
 # Resolución del problema. A partir de los resultados obtenidos, ¿cuáles son las conclusiones? ¿Los resultados permiten responder al problema?
