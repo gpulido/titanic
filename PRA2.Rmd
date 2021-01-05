@@ -3,6 +3,12 @@ title: "Tipologia y Ciclo de vida de los Datos. Practica 2"
 author: 'Autores: Alexis Germán Arroyo Peña y Gabriel Pulido de Torres'
 date: "Enero 2021"
 output:
+  pdf_document:
+    highlight: zenburn
+    toc: yes
+    latex_engine: xelatex
+    number_sections: yes
+    df_print: kable
   html_document:
     highlight: default
     number_sections: yes
@@ -11,12 +17,6 @@ output:
     toc_depth: 2
     includes:
       in_header: PRA-header.html
-  pdf_document:
-    highlight: zenburn
-    toc: yes
-    latex_engine: xelatex
-    number_sections: yes
-    df_print: kable
   word_document: default
 fontfamily: arev
 ---
@@ -1324,7 +1324,6 @@ bc_tree <- C50::C5.0(trainX,
                       control = C5.0Control(seed = 123)
                 )
 summary(bc_tree)
-plot(bc_tree)
 ```
 Aunque podríamos representar el árbol, nos han salido muchas reglas y es complicado de visualizar. Lo analizamos numéricamente.
 
@@ -1468,7 +1467,7 @@ Creemos que es preferible que se equivoque más en la predicción de que no van 
 
 ## Exportación de los datos
 
-Durane esta práctica se generan dos ficheros que estarán disponibles en el repositorio github. Estos son los siguientes:
+Durante esta práctica se generan dos ficheros que estarán disponibles en el repositorio github. Estos son los siguientes:
 
 - Un fichero “titanic_final.csv” que contiene las 12 variables con las que se ha trabajado, con la imputación de los datos realizada, con aquellas variables no utilizadas del dataset origen eliminadas, y con las transformaciones que hemos considerado necesarias.
 
