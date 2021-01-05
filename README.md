@@ -29,4 +29,4 @@ The folder `final_data` contains the output data from the assignment
 
 - The file `final_data\titanic_final.csv` contains the clean dataset with 12 variables, the nulls treated and that was being used to train the predict models
 
-- The file `final_data\titanic_predict.csv' is the same file with another variable added *Survived_predicted* with the results of the Survived variable for the best predict model from the code.
+- The file `final_data\titanic_predict.csv` is the same file with another variable added *Survived_predicted* with the results of the Survived variable for the best predict model from the code.
