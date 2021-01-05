@@ -12,7 +12,7 @@ Tipología y ciclo de vida de los datos (Data Sciencie Master - UOC)
 
 ## contents
 
-- The file PRA2.pdf is the **resolution of the asigment** at [`PRA2.pdf`](PRA2.pdf)
+The file PRA2.pdf is the **resolution of the asigment** at [`PRA2.pdf`](PRA2.pdf)
 
 The folder `data` contains the dataset used as input for the Practice:
 
