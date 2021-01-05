@@ -39,3 +39,7 @@ vignettes/*.pdf
 .Renviron
 
 *_files/
+
+src/PRA2.pdf
+src/PRA2.html
+src/titanic*
